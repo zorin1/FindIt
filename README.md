@@ -87,30 +87,30 @@ findit.py /tmp ~/
 
 Example 3:
 
-Find the word ‘dog’ or ‘house’ starting from your current directory.
+Find the word 'dog' or 'house' starting from your current directory.
 ```
-findit.py -e ‘dog|house’
+findit.py -e 'dog|house'
 ```
 
 Example 4:
 
-Find the word ‘dog’ and then the word ‘house’ from root.  This will first find all the files with the word ‘dog’ in it, then it will filter that list with a match of ‘house’.  So both the words have to be in the file name.
+Find the word 'dog' and then the word 'house' from root.  This will first find all the files with the word 'dog' in it, then it will filter that list with a match of 'house'.  So both the words have to be in the file name.
 ```
-findit.py / -e ‘dog’ ‘house’
+findit.py / -e 'dog' 'house'
 ```
 
 Example 5:
 
-Find the word ‘dog’ and it can also be part of the directory like ~/home/Pictures/Dog/mypet.jpg.  Also notice that by default it is not case sensitive.  If you care about case you can use the -c flag.
+Find the word 'dog' and it can also be part of the directory like ~/home/Pictures/Dog/mypet.jpg.  Also notice that by default it is not case sensitive.  If you care about case you can use the -c flag.
 ```
-findit.py ~ -f -e ‘dog’
+findit.py ~ -f -e 'dog'
 ```
 
 Example 6:
 
 Find all python programs from your current directory.
 ```
-findit.py -e ‘\.py$’
+findit.py -e '\.py$'
 ```
 
 Example 7:

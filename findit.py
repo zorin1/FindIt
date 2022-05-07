@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
 Version 3.0 - 5/7/2022  - Switched out get_files function.
 Version 2.9 - 5/6/2022  - Now you can pass it files as well as directories
 Version 2.8 - 4/29/2022 - Now the max file length takes in the fact of 2 chars for one visible display, added a date to the --version.
@@ -48,11 +49,14 @@ def scantree(path, depth):
   """Recursively yield DirEntry objects for given directory."""
   if (depth is not None):
     depth -= 1
-  for entry in os.scandir(path):
-    if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
-       yield from scantree(entry.path, depth)  # see below for Python 2.x
-    else:
-      yield entry
+  try:
+    for entry in os.scandir(path):
+      if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
+        yield from scantree(entry.path, depth)  # see below for Python 2.x
+      else:
+        yield entry
+  except:
+    pass
 
 def get_files(sourceDir, maxdepth):
   """Get a list of file"""
@@ -582,7 +586,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '3.0 date: 5/7/2022'
+  __version__ = '3.1 date: 5/7/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

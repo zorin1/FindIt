@@ -15,7 +15,7 @@ I hope that you find this somewhat useful.
 ```
 usage: findit.py [-h] [-a] [-c] [--column] [--COLUMN] [-i] [-I] [-e EREGS [EREGS ...]] [-l] [-L] [-f] [-n] [-p] [-P] [--PermOct] [-s] [-S] [-o] [-O] [-g] [-G] [-d] [-D] [-t] [-T] [-m MAXDEPTH] [--COLOR] [--color] [--version] [-R] [-od] [-os] [Dirs ...]
 
-findit.py version: 2.8 date: 4/29/2022
+findit.py version: 2.9 date: 5/6/2022
 This is basically a simple ls and find built into one.
 Run it with no arguments is the same as doing -e "." -m1.
 The -e "." mean match everything, -m1 just shows one level, so the current dir.
@@ -26,7 +26,7 @@ If you wanted to find the words "hello" and "hi" you would do:
 findit.py ~/Downloads ~/Documents -e "hello|hi"
 
 positional arguments:
- Dirs                  List of directories to search, default is the current dir
+ Dirs                  List of directories or files to search, default is the current dir
 
 options:
  -h, --help            show this help message and exit

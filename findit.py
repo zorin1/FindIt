@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 '''
-Version 2.8 - 4/29/d022 - Now the max file length takes in the fact of 2 chars for one visible display, added a date to the --version.
+Version 3.0 - 5/7/2022  - Switched out get_files function.
+Version 2.9 - 5/6/2022  - Now you can pass it files as well as directories
+Version 2.8 - 4/29/2022 - Now the max file length takes in the fact of 2 chars for one visible display, added a date to the --version.
 Version 2.7 - 4/27/2022 - Fixed an issue where unicode where the len is counting 2 for one char that is combined and displayed as one char.
 Version 2.6 - 4/23/2022 - Now split up extra spaces between columns.
 Version 2.5 - 4/22/2022 - Now display in column if you use the --column, which was added to the -l.
@@ -42,33 +44,33 @@ def clear_style():
 def msg(msg1, clr=''):
   print(f'{clr}{msg1}{style.RESET}')
 
+def scantree(path, depth):
+  """Recursively yield DirEntry objects for given directory."""
+  if (depth is not None):
+    depth -= 1
+  for entry in os.scandir(path):
+    if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
+       yield from scantree(entry.path, depth)  # see below for Python 2.x
+    else:
+      yield entry
 
 def get_files(sourceDir, maxdepth):
   """Get a list of file"""
   retset = set()
   if (maxdepth < 1 ):
     maxdepth = None
-  for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
-    depth = maxdepth
-    if (depth and depth == 1):
-      for filename in Path(sdir).glob('*'):
-        if (filename.exists() == True):
-          retset.add(Path(filename))
 
+  for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
+    retset.add(file)
+  for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
+    if (maxdepth == 1):
       retset.add(sdir)
-      # add ../ and ./ only if you are doing a findit in the current directory
       if (str(Path.cwd()) == str(sdir.resolve())):
         predir = str(sdir) + os.sep + '..'
         retset.add(Path(predir))
-    else:
-      top_pathlen = len(str(sdir)) + len(os.path.sep)
-      for root, dirs, files in os.walk(sdir):
-        dirlevel = root[top_pathlen:].count(os.path.sep) + 1
-        if (depth and dirlevel >= depth):
-          dirs[:] = []
-        else:
-          for basename in files:
-            retset.add(Path(root) / basename)
+
+    for entry in scantree(sdir, maxdepth):
+      retset.add(Path(entry))
 
   return (retset)
 
@@ -492,8 +494,8 @@ def main():
     description=f'%(prog)s version: {__version__}\n' +
                 f'This is basically a simple ls and find built into one.\n' +
                 f'Run it with no arguments is the same as doing -e "." -m1.\n' +
-                f'The -e "." mean match everything, -m1 just shows one level, so the current dir.\n' +
-                f'You can pass it multiple dirs, and with the -e you can pass it multiple regex.\n' +
+                f'The -e "." mean match everything, -m1 just show one level, so the current dir.\n' +
+                f'You can pass it multiple dirs or files, and with the -e you can pass it mutiple regex.\n' +
                 f'If you wanted to search for a file that has the name "hello" in it that might be located in 2 dirs:\n' +
                 f'findit.py ~/Downloads ~/Documents -e "hello"\n' +
                 f'If you wanted to find the words "hello" and "hi" you would do:\n' +
@@ -501,7 +503,7 @@ def main():
                 ,
     epilog=""
   )
-  parser.add_argument("Dirs", help="List of directories to search, default is the current dir", nargs='*', default='.')
+  parser.add_argument("Dirs", help="List of directories or files to search, default is the current dir", nargs='*', default='.')
   parser.add_argument('-a', '--absolute', help='Expand dir.', action='store_true')
   parser.add_argument('-c', '--case', help='Case sensitivity.', action='store_true')
   parser.add_argument('--column', help='Display in columns if possible.', action='store_true')
@@ -527,7 +529,7 @@ def main():
   parser.add_argument('-D', '--DATE', help='Do not modified display date  a file.', action='store_true')
   parser.add_argument('-t', '--time', help='Display modified time of file.', action='store_true')
   parser.add_argument('-T', '--TIME', help='Do not display modified time of a file.', action='store_true')
-  parser.add_argument('-m', '--maxdepth', type=int, help='How many directory levels to show.  If not set then show one level if you don\'t pass any eregs, otherwise show all.', default=-1)
+  parser.add_argument('-m', '--maxdepth', type=int, help='How many directory levels to show.  If not set then show all.', default=-1)
   parser.add_argument('--COLOR', help='Do not display color.', action='store_true')
   parser.add_argument('--color', help='Display color.', action='store_true')
   parser.add_argument('--version', action='version', version=(f'%(prog)s version: {__version__}'), help = 'show the version number and exit')
@@ -580,7 +582,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '2.8 date: 4/29/2022'
+  __version__ = '3.0 date: 5/7/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

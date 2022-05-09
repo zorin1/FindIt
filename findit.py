@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
 Version 3.0 - 5/7/2022  - Switched out get_files function.
 Version 2.9 - 5/6/2022  - Now you can pass it files as well as directories
@@ -19,6 +20,7 @@ Version 2.1 - add -f for full path search
 Version 2 - added -o -t -m'''
 import os
 import sys
+import shutil
 from pathlib import Path
 import argparse
 import re
@@ -105,13 +107,19 @@ def filter_list(flist, args):
   return(retset)
 
 def sizeof_fmt(num, suffix="B"):
-    for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-        if abs(num) < 1024.0:
-            return f"{num:3.1f} {unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.1f} Y{suffix}"
+  for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
+    if abs(num) < 1024.0:
+      return f"{num:3.1f} {unit}{suffix}"
+    num /= 1024.0
+  return f"{num:.1f} Y{suffix}"
 
-
+def sizeof_fmt_suffix(num, suffix="B"):
+  for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
+    if abs(num) < 1024.0:
+      return f"{unit}{suffix}"
+    num /= 1024.0
+  return f"Y{suffix}"
+  
 def print_args(args):
   '''
   print out the args'''
@@ -124,6 +132,10 @@ def get_file_info(filelist):
   owner_max_len=0
   group_max_len=0
   size_max_len=0
+  total_size_used=0
+  free_space=0
+  st_dev = set()
+
   for x in filelist:
     temp_dic={}
     try:
@@ -135,9 +147,11 @@ def get_file_info(filelist):
       fstat = x.lstat()
     else:
       fstat = x.stat()
+      
     imode = f'{stat.filemode(fstat.st_mode)}'
     imodeoct = f'{oct(fstat.st_mode & 0o7777)[2:].zfill(4)}'
     isize = fstat.st_size
+    total_size_used += isize
     isizefmt = f'{sizeof_fmt(isize)}'
     imtime = fstat.st_mtime
     imtime_date = f"{datetime.datetime.fromtimestamp(imtime).strftime('%m/%d/%Y')}"
@@ -168,6 +182,13 @@ def get_file_info(filelist):
       group_max_len = igroup_max
     if (len(isizefmt) > size_max_len):
       size_max_len = len(isizefmt)
+
+    #get free space by st_dev
+    if (fstat.st_dev not in st_dev):
+      st_dev.add(fstat.st_dev)
+      total, used, free = shutil.disk_usage(idir)
+      free_space += free
+
     #create dictionary
     temp_dic['dir'] = idir 
     temp_dic['name'] = iname
@@ -188,6 +209,8 @@ def get_file_info(filelist):
   temp_dic['owner_max'] = owner_max_len
   temp_dic['group_max'] = group_max_len
   temp_dic['size_max'] = size_max_len
+  temp_dic['total_size_used'] = total_size_used
+  temp_dic['free_space'] = free_space
   dic_file_info['--:--MAX--:--'] = temp_dic
 
   return(dic_file_info)
@@ -304,6 +327,8 @@ def print_results(dic_file_info, args):
     group_max = dic_file_info['--:--MAX--:--']['group_max']
     owner_group_max = owner_max + group_max + 1
     size_max = dic_file_info['--:--MAX--:--']['size_max']
+    total_size_used = dic_file_info['--:--MAX--:--']['total_size_used']
+    free_space = dic_file_info['--:--MAX--:--']['free_space']
 
     del dic_file_info['--:--MAX--:--']
 
@@ -425,11 +450,13 @@ def print_results(dic_file_info, args):
       columns = 1
     
     lines_per_column = int(output_lines / columns)
-    if (lines_per_column * columns > output_lines):
-      lines_per_column -= 1
+    #print(f'output_lines: {output_lines} coluns: {columns} lines_per_column: {lines_per_column}')
+    if (lines_per_column * columns < output_lines):
+      lines_per_column += 1
     if (lines_per_column == 0 and output_lines > 0):
       lines_per_column = 1
 
+    #print(f'output_lines: {output_lines} coluns: {columns} lines_per_column: {lines_per_column}')
     #print everything in one column
     if (acolumn == False):
       columns = 1
@@ -478,7 +505,8 @@ def print_results(dic_file_info, args):
     dirs = len(dir_set)
 
     if (ainfo == True):
-      info = f'Files: {files}     Dirs: {dirs}'
+      #info1 = f'Files: {files}     Dirs: {dirs}    Used:{sizeof_fmt(total_size_used)}    Free:{sizeof_fmt(free_space)}'
+      info = f'Files: {files}    Dirs: {dirs}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
       #strips out any color codes and then counts
       out_size = len(re.sub('\033\[[0-9]*m', '', out))
       if (columns > 1):
@@ -490,7 +518,7 @@ def print_results(dic_file_info, args):
           out_size -= 1
       msg( u'\u2500' * out_size)
       msg(info)
-
+            
 
 def main():
   parser = argparse.ArgumentParser(
@@ -578,6 +606,7 @@ def main():
   retset = set()
 
   # for x in dic_file_info:
+  #   print(x)
   #   if (x != '--:--MAX--:--'):
   #     print(f"dir: {dic_file_info[x]['dir']:15s} name: {dic_file_info[x]['name']}")
 
@@ -586,7 +615,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '3.1 date: 5/7/2022'
+  __version__ = '3.2 date: 5/9/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

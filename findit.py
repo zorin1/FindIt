@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
 Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
 Version 3.0 - 5/7/2022  - Switched out get_files function.
@@ -15,7 +16,7 @@ Version 2.4 - 4/19/2022 - Now works if you parse -e with '' around the search re
                           Changed defaults for -l when run from windows turn of -G -O since they don't make sense.
 Version 2.3 - 4/19/2022 - rewrote the dir split into left and right parts, added -PermOct, Changed first char color of both modes.  
                           Now prints in color in windows.
-Version 2.2 - Rewrote the printresults, now split the dir into left and right parts and print them.
+Version 2.2 - Rewrote the print results, now split the dir into left and right parts and print them.
 Version 2.1 - add -f for full path search
 Version 2 - added -o -t -m'''
 import os
@@ -47,6 +48,62 @@ def clear_style():
 def msg(msg1, clr=''):
   print(f'{clr}{msg1}{style.RESET}')
 
+class FileInfo:
+  '''
+  full is the main element, this is what the hash is based off of.
+  Set the values that we get from the scandir so that we don't have to get this info
+  more than once.
+
+  full: str 
+  dir: str 
+  name: str  
+  isdir: bool  
+  stat: os.stat_result 
+  '''
+  __slots__ = ('full', 'dir', 'name', 'isdir', 'stat')
+
+  def __init__(self, file):
+    '''
+    Takes either a Path or os.DirEntry
+    '''
+    if (type(file) == os.DirEntry):
+      self.full = file.path
+      self.name = file.name
+      self.isdir = file.is_dir()
+      if (self.isdir == True):
+        self.dir = file.path + os.sep
+      else:
+        self.dir =  file.path.rsplit(file.name,1)[0]
+
+      try:
+        self.stat = file.stat()
+      except:
+        self.full = None
+    else:
+      self.full = f'{file}'
+      self.name = file.name
+      self.isdir = file.is_dir()
+      if (self.isdir == True):
+        self.dir = f'{file}{os.sep}'
+      else:
+        self.dir = f'{file.parent}'
+      try:
+        if (file.is_symlink() == True):
+          self.stat = file.lstat()
+        else:
+          self.stat = file.stat()
+      except: 
+        self.full = None
+
+  def __repr__(self):
+    return (f'{self.full}')
+
+  def __eq__(self, other):
+    return(isinstance(other, FileInfo) and self.full == other.full)
+  
+  def __hash__(self):
+    return(hash(self.full))
+
 def scantree(path, depth):
   """Recursively yield DirEntry objects for given directory."""
   if (depth is not None):
@@ -54,7 +111,7 @@ def scantree(path, depth):
   try:
     for entry in os.scandir(path):
       if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
-        yield from scantree(entry.path, depth)  # see below for Python 2.x
+        yield from scantree(entry.path, depth) 
       else:
         yield entry
   except:
@@ -67,16 +124,26 @@ def get_files(sourceDir, maxdepth):
     maxdepth = None
 
   for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
-    retset.add(file)
+    fileinfo = FileInfo(file)
+    #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+    if (fileinfo.full is not None):
+      retset.add(fileinfo)
   for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
     if (maxdepth == 1):
-      retset.add(sdir)
+      fileinfo = FileInfo(sdir)
+      if (fileinfo.full is not None):
+        retset.add(fileinfo)
       if (str(Path.cwd()) == str(sdir.resolve())):
         predir = str(sdir) + os.sep + '..'
-        retset.add(Path(predir))
+        fileinfo = FileInfo(Path(predir))
+        if (fileinfo.full is not None):
+          retset.add(fileinfo)
 
     for entry in scantree(sdir, maxdepth):
-      retset.add(Path(entry))
+      fileinfo = FileInfo(entry)
+      if (fileinfo.full is not None):
+        retset.add(fileinfo)
+        #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
 
   return (retset)
 
@@ -93,7 +160,7 @@ def filter_list(flist, args):
     for file in flist:
       # full means directory and file name
       if (args.full == True):
-        f = f"{str(file)}"
+        f = f"{str(file.full)}"
         eereg = ereg
       else:
         f = f"{file.name}"
@@ -135,19 +202,13 @@ def get_file_info(filelist):
   total_size_used=0
   free_space=0
   st_dev = set()
+  dic_owner = {}
+  dic_group = {}
 
   for x in filelist:
     temp_dic={}
-    try:
-      if (x.exists() == False):
-        continue 
-    except:
-      continue
-    if (x.is_symlink() == True):
-      fstat = x.lstat()
-    else:
-      fstat = x.stat()
-      
+
+    fstat = x.stat
     imode = f'{stat.filemode(fstat.st_mode)}'
     imodeoct = f'{oct(fstat.st_mode & 0o7777)[2:].zfill(4)}'
     isize = fstat.st_size
@@ -157,25 +218,32 @@ def get_file_info(filelist):
     imtime_date = f"{datetime.datetime.fromtimestamp(imtime).strftime('%m/%d/%Y')}"
     imtime_time = f"{datetime.datetime.fromtimestamp(imtime).strftime('%I:%M.%S %p')}"
     try:
-      iowner = f'{x.owner()}'
+      if (fstat.st_uid not in dic_owner):
+        dic_owner[fstat.st_uid] = Path(str(x)).owner()
+
+      iowner = f'{dic_owner[fstat.st_uid]}'
       iowner_max = len(iowner)
     except:
       iowner = f'{fstat.st_uid}'
       iowner_max = len(iowner)
 
     try: 
-      igroup = f'{x.group()}'
+      if (fstat.st_gid not in dic_group):
+        dic_group[fstat.st_gid] = Path(str(x)).group()
+
+      igroup = f'{dic_group[fstat.st_gid]}'
       igroup_max = len(igroup)
     except:
       igroup = f'{fstat.st_gid}'
       igroup_max = len(igroup)
     
-    if (x.is_dir() == True):
-      idir = f'{str(x)}{os.sep}'
+    if (x.isdir == True):
+      idir = x.dir
       iname = ''
+      #msg(f'is_dir: dir:{x.parent} name:{x.name}', style.RED2)
     else:
-      idir = f'{x.parent}{os.sep}'
-      iname = f'{x.name}'
+      idir = x.dir
+      iname = x.name
     if (iowner_max > owner_max_len):
       owner_max_len = iowner_max
     if (igroup_max > group_max_len):
@@ -597,11 +665,26 @@ def main():
   else:
     mdepth = args.maxdepth
 
+  #start_time = datetime.datetime.now()
   retset = get_files(args.Dirs, mdepth)
+  #a1 = f'get_files: {datetime.datetime.now() - start_time}'
 
+  #start_time = datetime.datetime.now()
   retset = filter_list(retset, args)
+  #a2 = f'filter_list: {datetime.datetime.now() - start_time}'
+
+  #start_time = datetime.datetime.now()
+  # with cProfile.Profile() as pr:
+  #   dic_file_info = get_file_info(retset)
+
+  # stats = pstats.Stats(pr)
+  # stats.sort_stats(pstats.SortKey.TIME)
+  # stats.dump_stats(filename='f2_profiling.prof')
 
   dic_file_info = get_file_info(retset)
+
+
+  #a3 = f'get_file_info: {datetime.datetime.now() - start_time}'
 
   retset = set()
 
@@ -611,6 +694,10 @@ def main():
   #     print(f"dir: {dic_file_info[x]['dir']:15s} name: {dic_file_info[x]['name']}")
 
   print_results(dic_file_info, args)
+  #print(a1)
+  #print(a2)
+  #print(a3)
+
 
 
 
@@ -620,6 +707,3 @@ if __name__ == "__main__":
     sys.argv.append('-l')
     os.system('color')
   main()
-  # columns, lines = os.get_terminal_size()
-  # print(os.get_terminal_size())
-  # msg(f'columns: {style.BLUE2}{columns}{style.RESET} lines: {style.BLUE2}{lines}')

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
 Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
 Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
@@ -69,11 +70,14 @@ class FileInfo:
     if (type(file) == os.DirEntry):
       self.full = file.path
       self.name = file.name
-      self.isdir = file.is_dir()
-      if (self.isdir == True):
-        self.dir = file.path + os.sep
-      else:
-        self.dir =  file.path.rsplit(file.name,1)[0]
+      try:
+        self.isdir = file.is_dir()
+        if (self.isdir == True):
+          self.dir = file.path + os.sep
+        else:
+          self.dir =  file.path.rsplit(file.name,1)[0]
+      except:
+        self.full = None
 
       try:
         self.stat = file.stat()
@@ -117,59 +121,76 @@ def scantree(path, depth):
   except:
     pass
 
-def get_files(sourceDir, maxdepth):
+def get_files(sourceDir, maxdepth, args):
   """Get a list of file"""
   retset = set()
   if (maxdepth < 1 ):
     maxdepth = None
 
   for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
-    fileinfo = FileInfo(file)
-    #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
-    if (fileinfo.full is not None):
-      retset.add(fileinfo)
+    if (match_file(file, args.eregs, args.full) == True):
+      fileinfo = FileInfo(file)
+      #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+      if (fileinfo.full is not None ):
+        retset.add(fileinfo)
   for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
     if (maxdepth == 1):
-      fileinfo = FileInfo(sdir)
-      if (fileinfo.full is not None):
-        retset.add(fileinfo)
-      if (str(Path.cwd()) == str(sdir.resolve())):
-        predir = str(sdir) + os.sep + '..'
-        fileinfo = FileInfo(Path(predir))
+      if (match_file(sdir, args.eregs, args.full) == True):
+        fileinfo = FileInfo(sdir)
         if (fileinfo.full is not None):
           retset.add(fileinfo)
 
+      if (str(Path.cwd()) == str(sdir.resolve())):
+        predir = str(sdir) + os.sep + '..'
+        if (match_file(Path(predir), args.eregs, args.full) == True):
+          fileinfo = FileInfo(Path(predir))
+          if (fileinfo.full is not None):
+              retset.add(fileinfo)
+
     for entry in scantree(sdir, maxdepth):
-      fileinfo = FileInfo(entry)
-      if (fileinfo.full is not None):
-        retset.add(fileinfo)
-        #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+      if (match_file(entry, args.eregs, args.full) == True):
+        fileinfo = FileInfo(entry)
+        if (fileinfo.full is not None):
+          retset.add(fileinfo)
+          #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
 
   return (retset)
 
+def match_file(file, cregex, full):
+  if (type(file) == os.DirEntry):
+      full_name = file.path
+      name = file.name
+  else:
+    full_name = (f'file')
+    name = file.name
+  if (full == True):
+    f = full_name
+  else:
+    f = name
+
+  match = True
+  for ccregex in cregex:
+    x = ccregex.search(f) 
+    if (x is None):
+      match = False
+      break
+  return(match)
+
+
 
 def filter_list(flist, args):
-  if (args.case == True):
-    flags = 0
-  else:
-    flags = re.IGNORECASE
-  retset = set(flist)
-  for ereg in args.eregs:
-    flist = retset
-    retset = set()
-    for file in flist:
-      # full means directory and file name
-      if (args.full == True):
-        f = f"{str(file.full)}"
-        eereg = ereg
-      else:
-        f = f"{file.name}"
-        eereg = ereg
-        if (str(file) == '.'):
-          f = f"{str(file)}"
-      x = re.search(eereg, f, flags = flags)
-      if (x is not None):
-        retset.add(file)
+  retset = set()
+  for file in flist:
+    # full means directory and file name
+    if (args.full == True):
+      f = f"{str(file.full)}"
+    else:
+      f = f"{file.name}"
+    if (str(file) == '.'):
+      f = f"{str(file)}"
+
+    if (match_file(f, args.eregs, args.full) == True):
+      retset.add(file)
 
   return(retset)
 
@@ -292,11 +313,11 @@ def highlight_match(regxs,s, casesensitivity,colr):
     flags = re.IGNORECASE
 
   for regx in regxs:
-    if (regx == '.'):
+    if (regx == re.compile('.', flags=flags)):
       continue
     lastMatch = 0
     formattedText = ''
-    for match in re.finditer(regx, s, flags=flags):
+    for match in regx.finditer(s):
       start, end = match.span()
       formattedText += s[lastMatch: start]
       formattedText += colourStr
@@ -651,9 +672,16 @@ def main():
   if (((os.fstat(0) != os.fstat(1)) or args.COLOR == True ) and args.color == False):
     clear_style()
 
+  if (args.case == True):
+    flags = 0
+  else:
+    flags = re.IGNORECASE
+
+  ceregs = []
   for x in args.eregs:
     try:
-      tst = re.compile(x)
+      tst = re.compile(x, flags=flags)
+      ceregs.append(tst)
     except:
       msg(f'Bad regex: {x}', style.RED2)
       msg('Please try again...', style.RED2)
@@ -665,12 +693,14 @@ def main():
   else:
     mdepth = args.maxdepth
 
+  args.eregs = ceregs
+
   #start_time = datetime.datetime.now()
-  retset = get_files(args.Dirs, mdepth)
+  retset = get_files(args.Dirs, mdepth, args)
   #a1 = f'get_files: {datetime.datetime.now() - start_time}'
 
   #start_time = datetime.datetime.now()
-  retset = filter_list(retset, args)
+  #retset = filter_list(retset, args)
   #a2 = f'filter_list: {datetime.datetime.now() - start_time}'
 
   #start_time = datetime.datetime.now()
@@ -702,7 +732,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '3.2 date: 5/9/2022'
+  __version__ = '4.1 date: 5/29/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

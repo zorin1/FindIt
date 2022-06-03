@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 '''
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
+                          Added commas to number of files and directories. 
+                          Add a progress bar so that you know things are not stuck.
 Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
 Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
@@ -32,6 +34,7 @@ import platform
 import unicodedata
 
 class style():
+  redirect = False
   BLACK = '\033[30m'; RED = '\033[31m'; GREEN = '\033[32m'; YELLOW = '\033[33m'
   BLUE = '\033[34m'; MAGENTA = '\033[35m'; CYAN = '\033[36m'; WHITE = '\033[37m'; GRAY = '\033[90m'
   RED2 = '\033[91m'; GREEN2 = '\033[92m'; YELLOW2 = '\033[93m'; BLUE2 = '\033[94m'
@@ -39,12 +42,43 @@ class style():
   UNDERLINE = '\033[4m'; RESET = '\033[0m'
 
 def clear_style():
+  style.redirect = True
   style.BLACK = ''; style.RED = ''; style.GREEN = ''; style.YELLOW = ''
   style.BLUE = ''; style.MAGENTA = ''; style.CYAN = ''; style.WHITE = ''; style.GRAY = ''
   style.RED2 = ''; style.GREEN2 = ''; style.YELLOW2 = ''; style.BLUE2 = ''
   style.MAGENTA2 = ''; style.CYAN2 = ''; style.WHITE2  = ''
   style.UNDERLINE = ''; style.RESET = ''
 
+class spinner():
+  spinner = '\|/-'
+  counter = 0
+  index = 0
+  prev_title = ''
+
+  def get_count():
+    spinner.counter += 1
+    if (spinner.counter >= 500):
+      spinner.counter = 0
+      if (spinner.index == 4):
+        spinner.index = 0
+      ret = spinner.index
+      spinner.index += 1
+    else:
+      ret  = -1
+    return(ret)
+
+  def spin(title = ''):
+    index = spinner.get_count()
+    if (index != -1 and style.redirect == False):
+      #remove previous title
+      if (title != spinner.prev_title):
+        t = len(spinner.prev_title) + 1
+        out = t * ' ' + t * '\b' 
+        print(out , end = '', flush =True)
+        spinner.prev_title = title
+
+      t = len(title)
+      print(title + spinner.spinner[index] + (t + 1) * '\b' , end = '', flush =True)
 
 def msg(msg1, clr=''):
   print(f'{clr}{msg1}{style.RESET}')
@@ -114,6 +148,7 @@ def scantree(path, depth):
     depth -= 1
   try:
     for entry in os.scandir(path):
+      spinner.spin('Getting Files Names: ')
       if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
         yield from scantree(entry.path, depth) 
       else:
@@ -226,9 +261,10 @@ def get_file_info(filelist):
   dic_owner = {}
   dic_group = {}
 
+
   for x in filelist:
     temp_dic={}
-
+    spinner.spin('Getting File Info: ')
     fstat = x.stat
     imode = f'{stat.filemode(fstat.st_mode)}'
     imodeoct = f'{oct(fstat.st_mode & 0o7777)[2:].zfill(4)}'
@@ -435,6 +471,7 @@ def print_results(dic_file_info, args):
     else:
       k = lambda k:(dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     for x in sorted(dic_file_info, key = k, reverse=reverse): 
+      spinner.spin('Formating Output: ')
       y = dic_file_info[x]
 
       if (args.name == True):
@@ -595,7 +632,7 @@ def print_results(dic_file_info, args):
 
     if (ainfo == True):
       #info1 = f'Files: {files}     Dirs: {dirs}    Used:{sizeof_fmt(total_size_used)}    Free:{sizeof_fmt(free_space)}'
-      info = f'Files: {files}    Dirs: {dirs}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
+      info = f'Files: {files:,}    Dirs: {dirs:,}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
       #strips out any color codes and then counts
       out_size = len(re.sub('\033\[[0-9]*m', '', out))
       if (columns > 1):

@@ -1,5 +1,9 @@
 #!/usr/bin/python3
 '''
+Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
+                          Added commas to number of files and directories. 
+                          Add a progress bar so that you know things are not stuck.
+                          Added two new options --progress and --PROGRESS and added --progress to -l.
 Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
 Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
@@ -31,6 +35,7 @@ import platform
 import unicodedata
 
 class style():
+  redirect = False
   BLACK = '\033[30m'; RED = '\033[31m'; GREEN = '\033[32m'; YELLOW = '\033[33m'
   BLUE = '\033[34m'; MAGENTA = '\033[35m'; CYAN = '\033[36m'; WHITE = '\033[37m'; GRAY = '\033[90m'
   RED2 = '\033[91m'; GREEN2 = '\033[92m'; YELLOW2 = '\033[93m'; BLUE2 = '\033[94m'
@@ -38,12 +43,44 @@ class style():
   UNDERLINE = '\033[4m'; RESET = '\033[0m'
 
 def clear_style():
+  style.redirect = True
   style.BLACK = ''; style.RED = ''; style.GREEN = ''; style.YELLOW = ''
   style.BLUE = ''; style.MAGENTA = ''; style.CYAN = ''; style.WHITE = ''; style.GRAY = ''
   style.RED2 = ''; style.GREEN2 = ''; style.YELLOW2 = ''; style.BLUE2 = ''
   style.MAGENTA2 = ''; style.CYAN2 = ''; style.WHITE2  = ''
   style.UNDERLINE = ''; style.RESET = ''
 
+class spinner():
+  spinner = '\|/-'
+  counter = 0
+  index = 0
+  prev_title = ''
+  display_spinner = False
+
+  def get_count():
+    spinner.counter += 1
+    if (spinner.counter >= 500):
+      spinner.counter = 0
+      if (spinner.index == 4):
+        spinner.index = 0
+      ret = spinner.index
+      spinner.index += 1
+    else:
+      ret  = -1
+    return(ret)
+
+  def spin(title = ''):
+    index = spinner.get_count()
+    if (index != -1 and spinner.display_spinner == True):
+      #remove previous title
+      if (title != spinner.prev_title):
+        t = len(spinner.prev_title) + 1
+        out = t * ' ' + t * '\b' 
+        print(out , end = '', flush =True)
+        spinner.prev_title = title
+
+      t = len(title)
+      print(title + spinner.spinner[index] + (t + 1) * '\b' , end = '', flush =True)
 
 def msg(msg1, clr=''):
   print(f'{clr}{msg1}{style.RESET}')
@@ -69,11 +106,14 @@ class FileInfo:
     if (type(file) == os.DirEntry):
       self.full = file.path
       self.name = file.name
-      self.isdir = file.is_dir()
-      if (self.isdir == True):
-        self.dir = file.path + os.sep
-      else:
-        self.dir =  file.path.rsplit(file.name,1)[0]
+      try:
+        self.isdir = file.is_dir()
+        if (self.isdir == True):
+          self.dir = file.path + os.sep
+        else:
+          self.dir =  file.path.rsplit(file.name,1)[0]
+      except:
+        self.full = None
 
       try:
         self.stat = file.stat()
@@ -110,6 +150,7 @@ def scantree(path, depth):
     depth -= 1
   try:
     for entry in os.scandir(path):
+      spinner.spin('Getting Files Names: ')
       if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
         yield from scantree(entry.path, depth) 
       else:
@@ -117,59 +158,76 @@ def scantree(path, depth):
   except:
     pass
 
-def get_files(sourceDir, maxdepth):
+def get_files(sourceDir, maxdepth, args):
   """Get a list of file"""
   retset = set()
   if (maxdepth < 1 ):
     maxdepth = None
 
   for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
-    fileinfo = FileInfo(file)
-    #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
-    if (fileinfo.full is not None):
-      retset.add(fileinfo)
+    if (match_file(file, args.eregs, args.full) == True):
+      fileinfo = FileInfo(file)
+      #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+      if (fileinfo.full is not None ):
+        retset.add(fileinfo)
   for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
     if (maxdepth == 1):
-      fileinfo = FileInfo(sdir)
-      if (fileinfo.full is not None):
-        retset.add(fileinfo)
-      if (str(Path.cwd()) == str(sdir.resolve())):
-        predir = str(sdir) + os.sep + '..'
-        fileinfo = FileInfo(Path(predir))
+      if (match_file(sdir, args.eregs, args.full) == True):
+        fileinfo = FileInfo(sdir)
         if (fileinfo.full is not None):
           retset.add(fileinfo)
 
+      if (str(Path.cwd()) == str(sdir.resolve())):
+        predir = str(sdir) + os.sep + '..'
+        if (match_file(Path(predir), args.eregs, args.full) == True):
+          fileinfo = FileInfo(Path(predir))
+          if (fileinfo.full is not None):
+              retset.add(fileinfo)
+
     for entry in scantree(sdir, maxdepth):
-      fileinfo = FileInfo(entry)
-      if (fileinfo.full is not None):
-        retset.add(fileinfo)
-        #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+      if (match_file(entry, args.eregs, args.full) == True):
+        fileinfo = FileInfo(entry)
+        if (fileinfo.full is not None):
+          retset.add(fileinfo)
+          #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
 
   return (retset)
 
+def match_file(file, cregex, full):
+  if (type(file) == os.DirEntry):
+      full_name = file.path
+      name = file.name
+  else:
+    full_name = (f'file')
+    name = file.name
+  if (full == True):
+    f = full_name
+  else:
+    f = name
+
+  match = True
+  for ccregex in cregex:
+    x = ccregex.search(f) 
+    if (x is None):
+      match = False
+      break
+  return(match)
+
+
 
 def filter_list(flist, args):
-  if (args.case == True):
-    flags = 0
-  else:
-    flags = re.IGNORECASE
-  retset = set(flist)
-  for ereg in args.eregs:
-    flist = retset
-    retset = set()
-    for file in flist:
-      # full means directory and file name
-      if (args.full == True):
-        f = f"{str(file.full)}"
-        eereg = ereg
-      else:
-        f = f"{file.name}"
-        eereg = ereg
-        if (str(file) == '.'):
-          f = f"{str(file)}"
-      x = re.search(eereg, f, flags = flags)
-      if (x is not None):
-        retset.add(file)
+  retset = set()
+  for file in flist:
+    # full means directory and file name
+    if (args.full == True):
+      f = f"{str(file.full)}"
+    else:
+      f = f"{file.name}"
+    if (str(file) == '.'):
+      f = f"{str(file)}"
+
+    if (match_file(f, args.eregs, args.full) == True):
+      retset.add(file)
 
   return(retset)
 
@@ -205,9 +263,10 @@ def get_file_info(filelist):
   dic_owner = {}
   dic_group = {}
 
+
   for x in filelist:
     temp_dic={}
-
+    spinner.spin('Getting File Info: ')
     fstat = x.stat
     imode = f'{stat.filemode(fstat.st_mode)}'
     imodeoct = f'{oct(fstat.st_mode & 0o7777)[2:].zfill(4)}'
@@ -292,11 +351,11 @@ def highlight_match(regxs,s, casesensitivity,colr):
     flags = re.IGNORECASE
 
   for regx in regxs:
-    if (regx == '.'):
+    if (regx == re.compile('.', flags=flags)):
       continue
     lastMatch = 0
     formattedText = ''
-    for match in re.finditer(regx, s, flags=flags):
+    for match in regx.finditer(s):
       start, end = match.span()
       formattedText += s[lastMatch: start]
       formattedText += colourStr
@@ -414,6 +473,7 @@ def print_results(dic_file_info, args):
     else:
       k = lambda k:(dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     for x in sorted(dic_file_info, key = k, reverse=reverse): 
+      spinner.spin('Formating Output: ')
       y = dic_file_info[x]
 
       if (args.name == True):
@@ -574,7 +634,7 @@ def print_results(dic_file_info, args):
 
     if (ainfo == True):
       #info1 = f'Files: {files}     Dirs: {dirs}    Used:{sizeof_fmt(total_size_used)}    Free:{sizeof_fmt(free_space)}'
-      info = f'Files: {files}    Dirs: {dirs}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
+      info = f'Files: {files:,}    Dirs: {dirs:,}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
       #strips out any color codes and then counts
       out_size = len(re.sub('\033\[[0-9]*m', '', out))
       if (columns > 1):
@@ -612,13 +672,15 @@ def main():
   parser.add_argument('-I', '--INFO', help='Do not Display info footer.', action='store_true')
 
   parser.add_argument('-e', '--eregs', help="Multiple regular expressions, default is '.' match everything", nargs='+', default='.')
-  parser.add_argument('-l', '--long', help="Long output, same as --column -i -m -s -o -g -d -t.", action='store_true')
-  parser.add_argument('-L', '--LONG', help="Turn off --COLUMN -I -M -S -O -G -D -T.", action='store_true')
+  parser.add_argument('-l', '--long', help="Long output, same as --column -i -m -s -o -g -d -t --progress.", action='store_true')
+  parser.add_argument('-L', '--LONG', help="Turn off --COLUMN -I -M -S -O -G -D -T --PROGRESS.", action='store_true')
   parser.add_argument('-f', '--full', help='Search on full path dir + name', action='store_true')
   parser.add_argument('-n', '--name', help='Display name without path.', action='store_true')
   parser.add_argument('-p', '--permission', help='Display mode (permissions) of a file.', action='store_true')
   parser.add_argument('-P', '--PERMISSION', help='Do not display mode (permissions) of a file.', action='store_true')
   parser.add_argument('--PermOct', help='Display permission as octal, but also add the first char from the mode (-p) ie. -0666, d0666 (dir).', action='store_true')
+  parser.add_argument('--progress',  help='Display progress spinner.', action='store_true')
+  parser.add_argument('--PROGRESS',  help='Do not display progress spinner.', action='store_true')
   parser.add_argument('-s', '--size', help='Display file size.', action='store_true')
   parser.add_argument('-S', '--SIZE', help='Do not display file size.', action='store_true')
   parser.add_argument('-o', '--owner', help='Display owner of a file.', action='store_true')
@@ -648,12 +710,31 @@ def main():
 
   #print_args(args)
 
+  if (args.long == True):
+    spinner.display_spinner = True
+  if (args.LONG == True):
+    spinner.display_spinner = False
+
+  if (args.progress == True):
+    spinner.display_spinner = True
+  if (args.PROGRESS == True):
+    spinner.display_spinner = False
+
   if (((os.fstat(0) != os.fstat(1)) or args.COLOR == True ) and args.color == False):
     clear_style()
+    spinner.display_spinner = False
 
+
+  if (args.case == True):
+    flags = 0
+  else:
+    flags = re.IGNORECASE
+
+  ceregs = []
   for x in args.eregs:
     try:
-      tst = re.compile(x)
+      tst = re.compile(x, flags=flags)
+      ceregs.append(tst)
     except:
       msg(f'Bad regex: {x}', style.RED2)
       msg('Please try again...', style.RED2)
@@ -665,12 +746,14 @@ def main():
   else:
     mdepth = args.maxdepth
 
+  args.eregs = ceregs
+
   #start_time = datetime.datetime.now()
-  retset = get_files(args.Dirs, mdepth)
+  retset = get_files(args.Dirs, mdepth, args)
   #a1 = f'get_files: {datetime.datetime.now() - start_time}'
 
   #start_time = datetime.datetime.now()
-  retset = filter_list(retset, args)
+  #retset = filter_list(retset, args)
   #a2 = f'filter_list: {datetime.datetime.now() - start_time}'
 
   #start_time = datetime.datetime.now()
@@ -702,7 +785,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '3.2 date: 5/9/2022'
+  __version__ = '4.1 date: 5/29/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

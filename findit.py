@@ -3,6 +3,7 @@
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
                           Added commas to number of files and directories. 
                           Add a progress bar so that you know things are not stuck.
+                          Added two new options --progress and --PROGRESS and added --progress to -l.
 Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
 Version 3.2 - 5/9/2022  - Fixed an issue where sometimes it would not display the last file in the list.  Added size and free space.
 Version 3.1 - 5/7/2022  - Fixed an issue where you don't have access a directory.
@@ -54,6 +55,7 @@ class spinner():
   counter = 0
   index = 0
   prev_title = ''
+  display_spinner = False
 
   def get_count():
     spinner.counter += 1
@@ -69,7 +71,7 @@ class spinner():
 
   def spin(title = ''):
     index = spinner.get_count()
-    if (index != -1 and style.redirect == False):
+    if (index != -1 and spinner.display_spinner == True):
       #remove previous title
       if (title != spinner.prev_title):
         t = len(spinner.prev_title) + 1
@@ -670,13 +672,15 @@ def main():
   parser.add_argument('-I', '--INFO', help='Do not Display info footer.', action='store_true')
 
   parser.add_argument('-e', '--eregs', help="Multiple regular expressions, default is '.' match everything", nargs='+', default='.')
-  parser.add_argument('-l', '--long', help="Long output, same as --column -i -m -s -o -g -d -t.", action='store_true')
-  parser.add_argument('-L', '--LONG', help="Turn off --COLUMN -I -M -S -O -G -D -T.", action='store_true')
+  parser.add_argument('-l', '--long', help="Long output, same as --column -i -m -s -o -g -d -t --progress.", action='store_true')
+  parser.add_argument('-L', '--LONG', help="Turn off --COLUMN -I -M -S -O -G -D -T --PROGRESS.", action='store_true')
   parser.add_argument('-f', '--full', help='Search on full path dir + name', action='store_true')
   parser.add_argument('-n', '--name', help='Display name without path.', action='store_true')
   parser.add_argument('-p', '--permission', help='Display mode (permissions) of a file.', action='store_true')
   parser.add_argument('-P', '--PERMISSION', help='Do not display mode (permissions) of a file.', action='store_true')
   parser.add_argument('--PermOct', help='Display permission as octal, but also add the first char from the mode (-p) ie. -0666, d0666 (dir).', action='store_true')
+  parser.add_argument('--progress',  help='Display progress spinner.', action='store_true')
+  parser.add_argument('--PROGRESS',  help='Do not display progress spinner.', action='store_true')
   parser.add_argument('-s', '--size', help='Display file size.', action='store_true')
   parser.add_argument('-S', '--SIZE', help='Do not display file size.', action='store_true')
   parser.add_argument('-o', '--owner', help='Display owner of a file.', action='store_true')
@@ -706,8 +710,20 @@ def main():
 
   #print_args(args)
 
+  if (args.long == True):
+    spinner.display_spinner = True
+  if (args.LONG == True):
+    spinner.display_spinner = False
+
+  if (args.progress == True):
+    spinner.display_spinner = True
+  if (args.PROGRESS == True):
+    spinner.display_spinner = False
+
   if (((os.fstat(0) != os.fstat(1)) or args.COLOR == True ) and args.color == False):
     clear_style()
+    spinner.display_spinner = False
+
 
   if (args.case == True):
     flags = 0

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.2 - 6/11/2022 - Fixed an issue where the os.sep was left out when you run findit on a given file.
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
                           Added commas to number of files and directories. 
                           Add a progress bar so that you know things are not stuck.
@@ -126,7 +127,7 @@ class FileInfo:
       if (self.isdir == True):
         self.dir = f'{file}{os.sep}'
       else:
-        self.dir = f'{file.parent}'
+        self.dir = f'{file.parent}{os.sep}'
       try:
         if (file.is_symlink() == True):
           self.stat = file.lstat()
@@ -785,7 +786,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.1 date: 5/29/2022'
+  __version__ = '4.2 date: 6/11/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

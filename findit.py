@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.3 - 6/11/2022 - Added -Dir which will display only directories.  If you combine this with -e then it only matches on the top most directory.
 Version 4.2 - 6/11/2022 - Fixed an issue where the os.sep was left out when you run findit on a given file.
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
                           Added commas to number of files and directories. 
@@ -145,17 +146,23 @@ class FileInfo:
   def __hash__(self):
     return(hash(self.full))
 
-def scantree(path, depth):
+def scantree(path, depth, dir):
   """Recursively yield DirEntry objects for given directory."""
   if (depth is not None):
     depth -= 1
   try:
     for entry in os.scandir(path):
       spinner.spin('Getting Files Names: ')
-      if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
-        yield from scantree(entry.path, depth) 
+      #only get direcotries
+      if (dir == True):
+        if (entry.is_dir(follow_symlinks=False) and (depth is None or depth >= 0)):
+          yield entry
+          yield from scantree(entry.path, depth, dir) 
       else:
-        yield entry
+        if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
+          yield from scantree(entry.path, depth, dir) 
+        else:
+          yield entry
   except:
     pass
 
@@ -165,12 +172,13 @@ def get_files(sourceDir, maxdepth, args):
   if (maxdepth < 1 ):
     maxdepth = None
 
-  for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
-    if (match_file(file, args.eregs, args.full) == True):
-      fileinfo = FileInfo(file)
-      #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
-      if (fileinfo.full is not None ):
-        retset.add(fileinfo)
+  if (args.Dir == False):
+    for file in { Path(x) for x in sourceDir if Path(x).is_file() }:
+      if (match_file(file, args.eregs, args.full) == True):
+        fileinfo = FileInfo(file)
+        #print(f'{fileinfo.isdir=} {fileinfo.dir=} {fileinfo.name=}')
+        if (fileinfo.full is not None ):
+          retset.add(fileinfo)
   for sdir in { Path(x) for x in sourceDir if Path(x).is_dir() }:
     if (maxdepth == 1):
       if (match_file(sdir, args.eregs, args.full) == True):
@@ -185,7 +193,7 @@ def get_files(sourceDir, maxdepth, args):
           if (fileinfo.full is not None):
               retset.add(fileinfo)
 
-    for entry in scantree(sdir, maxdepth):
+    for entry in scantree(sdir, maxdepth, args.Dir):
       if (match_file(entry, args.eregs, args.full) == True):
         fileinfo = FileInfo(entry)
         if (fileinfo.full is not None):
@@ -199,7 +207,7 @@ def match_file(file, cregex, full):
       full_name = file.path
       name = file.name
   else:
-    full_name = (f'file')
+    full_name = (f'{file}')
     name = file.name
   if (full == True):
     f = full_name
@@ -511,7 +519,7 @@ def print_results(dic_file_info, args):
             ldir = dirsplit[0]
 
         #did they search on full path if so highlight rdir
-        if (args.full == True):
+        if (args.full == True or y["name"] == ''):
           rdir = highlight_match(args.eregs, rdir, args.case, style.YELLOW)
 
         if (y["name"] == '' and rdir == '' and ldir == ''):
@@ -699,6 +707,7 @@ def main():
   parser.add_argument('-R', '--reverse', help='reverse the sort order.', action='store_true')
   parser.add_argument('-od', '--orderdate', help='Order by date.', action='store_true')
   parser.add_argument('-os', '--ordersize', help='Order by size.', action='store_true')
+  parser.add_argument('-Dir', '--Dir', help='Display Directories only.', action='store_true')
 
   args = parser.parse_args()
   #in windows when you pass -e with 'find' it wrappes it with "" so need to strip off ' from the front and back of string
@@ -786,7 +795,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.2 date: 6/11/2022'
+  __version__ = '4.3 date: 6/11/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

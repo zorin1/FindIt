@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 '''
+Version 4.4 - 6/16/2022 - Changed when the column separator is printed. 
+                          Added a top line and better graphic line chars.
 Version 4.3 - 6/11/2022 - Added -Dir which will display only directories.  If you combine this with -e then it only matches on the top most directory.
 Version 4.2 - 6/11/2022 - Fixed an issue where the os.sep was left out when you run findit on a given file.
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
@@ -610,32 +612,9 @@ def print_results(dic_file_info, args):
       extra = int(extra_spaces / columns )
       add_spaces = ' ' * extra
       #print(f'term_columns: {term_columns} max_output: {max_output} spaces_btwn_columns: {spaces_btwn_columns} column_len: {column_len} extra_spaces: {extra_spaces} extra: {extra}')
-
-
-    for lin in range(lines_per_column):
-      s = ''
-      if (columns == 1):
-        s = f'{output_lst[lin]}'
-      else:
-        for col in (range(int(columns))):
-          inx = (col * lines_per_column) + lin 
-          if (inx < output_lines):
-            lendiff = 0
-            colors = re.findall('\033\[[0-9]*m', output_lst[inx])
-            for i in colors:
-              lendiff += len(i)
-            #d = re.sub('\033\[[0-9]*m', '', output_lst[inx])
-            answer = sum(1 for ch in output_lst[inx] if unicodedata.combining(ch) != 0)
-            lendiff += answer
-            if (col > 0 and col < columns):
-              #Added 3 spaces between columns plus left over
-              s += f'{style.RESET}{add_spaces} \u2502 '
-            s = s + f'{output_lst[inx]:<{max_output +lendiff}}'
-      msg(s)
-
-    
-    # print(f'term_columns: {term_columns} max_output: {max_output} columns: {columns} tmp_length: {tmp_length} output_lines: {output_lines}')
-
+      #print(f'lines_per_column: {lines_per_column} columns: {int(columns)} output_lst: {len(output_lst)}')
+    #print top line
+    #*****************************
     #get the number of files for total line
     files =len([x['name'] for x in dic_file_info.values() if x['name'] != ''])
     #get the number of dirs for total line
@@ -653,7 +632,57 @@ def print_results(dic_file_info, args):
           out_size = len(info)
         else:
           out_size -= 1
-      msg( u'\u2500' * out_size)
+
+      #string = string[:position] + new_character + string[position+1:]
+      if (columns > 1):
+        line_break_top = ''
+        line_break_bottom = ''
+        for x in (range(int(columns -1))):
+          line_break_top += u'\u2500' * (max_output + extra + 1)
+          line_break_top += u'\u252C\u2500'
+
+          line_break_bottom += u'\u2500' * (max_output + extra + 1)
+          line_break_bottom += u'\u2534\u2500'
+
+        line_break_top += u'\u2500' * (term_columns - len(line_break_top))
+        line_break_bottom += u'\u2500' * (term_columns - len(line_break_bottom))
+      else:
+        line_break_top =  u'\u2500' * out_size
+        line_break_bottom =  u'\u2500' * out_size
+      msg(line_break_top)
+
+
+    for lin in range(lines_per_column):
+      s = ''
+      if (columns == 1):
+        s = f'{output_lst[lin]}'
+      else:
+        for col in (range(int(columns))):
+          inx = (col * lines_per_column) + lin 
+          if (inx < output_lines):
+            lendiff = 0
+            colors = re.findall('\033\[[0-9]*m', output_lst[inx])
+            for i in colors:
+              lendiff += len(i)
+            #d = re.sub('\033\[[0-9]*m', '', output_lst[inx])
+            answer = sum(1 for ch in output_lst[inx] if unicodedata.combining(ch) != 0)
+            lendiff += answer
+            s += f'{output_lst[inx]:<{max_output +lendiff}}'
+            if (col < columns -1):
+              #Added 3 spaces between columns plus left over
+              s += f'{style.RESET}{add_spaces} \u2502 '
+      msg(s)
+
+    
+    # print(f'term_columns: {term_columns} max_output: {max_output} columns: {columns} tmp_length: {tmp_length} output_lines: {output_lines}')
+
+    #get the number of files for total line
+    files =len([x['name'] for x in dic_file_info.values() if x['name'] != ''])
+    #get the number of dirs for total line
+    dirs = len(dir_set)
+
+    if (ainfo == True):
+      msg(line_break_bottom)
       msg(info)
             
 
@@ -795,7 +824,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.3 date: 6/11/2022'
+  __version__ = '4.4 date: 6/16/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

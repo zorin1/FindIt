@@ -638,11 +638,12 @@ def print_results(dic_file_info, args):
         line_break_top = ''
         line_break_bottom = ''
         for x in (range(int(columns -1))):
-          line_break_top += u'\u2500' * (max_output + extra + 1)
-          line_break_top += u'\u252C\u2500'
+          if (x < output_lines):
+            line_break_top += u'\u2500' * (max_output + extra + 1)
+            line_break_top += u'\u252C\u2500'
 
-          line_break_bottom += u'\u2500' * (max_output + extra + 1)
-          line_break_bottom += u'\u2534\u2500'
+            line_break_bottom += u'\u2500' * (max_output + extra + 1)
+            line_break_bottom += u'\u2534\u2500'
 
         line_break_top += u'\u2500' * (term_columns - len(line_break_top))
         line_break_bottom += u'\u2500' * (term_columns - len(line_break_bottom))
@@ -824,7 +825,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.4 date: 6/16/2022'
+  __version__ = '4.5 date: 6/17/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

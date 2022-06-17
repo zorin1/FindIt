@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.5 - 6/17/2022 - Fixed a display issue when there is not enough files per column.
 Version 4.4 - 6/16/2022 - Changed when the column separator is printed. 
                           Added a top line and better graphic line chars.
 Version 4.3 - 6/11/2022 - Added -Dir which will display only directories.  If you combine this with -e then it only matches on the top most directory.

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.6 - 6/27/2022 - Fixed a bug where it would not display the directory root that is passed to it.
 Version 4.5 - 6/17/2022 - Fixed a display issue when there is not enough files per column.
 Version 4.4 - 6/16/2022 - Changed when the column separator is printed. 
                           Added a top line and better graphic line chars.
@@ -212,6 +213,8 @@ def match_file(file, cregex, full):
   else:
     full_name = (f'{file}')
     name = file.name
+    if (name == ''):
+      name = full_name
   if (full == True):
     f = full_name
   else:
@@ -826,7 +829,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.5 date: 6/17/2022'
+  __version__ = '4.6 date: 6/24/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

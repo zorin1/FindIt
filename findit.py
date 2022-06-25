@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 '''
-Version 4.6 - 6/27/2022 - Fixed a bug where it would not display the directory root that is passed to it.
+Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice. 
+Version 4.6 - 6/24/2022 - Fixed a bug where it would not display the directory root that is passed to it.
 Version 4.5 - 6/17/2022 - Fixed a display issue when there is not enough files per column.
 Version 4.4 - 6/16/2022 - Changed when the column separator is printed. 
                           Added a top line and better graphic line chars.
@@ -110,7 +111,7 @@ class FileInfo:
     Takes either a Path or os.DirEntry
     '''
     if (type(file) == os.DirEntry):
-      self.full = file.path
+      self.full = os.path.abspath(file.path)
       self.name = file.name
       try:
         self.isdir = file.is_dir()
@@ -126,7 +127,7 @@ class FileInfo:
       except:
         self.full = None
     else:
-      self.full = f'{file}'
+      self.full = os.path.abspath(file)
       self.name = file.name
       self.isdir = file.is_dir()
       if (self.isdir == True):
@@ -829,7 +830,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.6 date: 6/24/2022'
+  __version__ = '4.7 date: 6/25/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

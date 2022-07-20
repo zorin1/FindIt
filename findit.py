@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 '''
-Version 7.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
+Version 4.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
                           than the number columns in the terminal then limit it to column length.
 Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice. 
 Version 4.6 - 6/24/2022 - Fixed a bug where it would not display the directory root that is passed to it.
@@ -837,7 +837,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.8 date: 7/12/2022'
+  __version__ = '4.8 date: 7/19/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

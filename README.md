@@ -17,7 +17,7 @@ usage: findit.py [-h] [-a] [-c] [--column] [--COLUMN] [-i] [-I] [-e EREGS [EREGS
                  [-d] [-D] [-t] [-T] [-m MAXDEPTH] [--COLOR] [--color] [--version] [-R] [-od] [-os]
                  [Dirs ...]
 
-findit.py version: 4.7 date: 6/25/2022
+findit.py version: 4.8 date: 7/19/2022
 This is basically a simple ls and find built into one.
 Run it with no arguments is the same as doing -e "." -m1.
 The -e "." mean match everything, -m1 just show one level, so the current dir.

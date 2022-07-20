@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 '''
+Version 7.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
+                          than the number columns in the terminal then limit it to column length.
 Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice. 
 Version 4.6 - 6/24/2022 - Fixed a bug where it would not display the directory root that is passed to it.
 Version 4.5 - 6/17/2022 - Fixed a display issue when there is not enough files per column.
@@ -633,10 +635,15 @@ def print_results(dic_file_info, args):
       if (columns > 1):
         out_size = term_columns
       else:
-        if (out_size < len(info)):
-          out_size = len(info)
+        #Figure out how long to make the header and footer line
+        #print(f'{out_size=} {len(info)=} {max_output=} {term_columns=}')
+        if ( max_output < len(info) ):
+            out_size = len(info)
+        elif ( max_output < term_columns):
+            out_size = max_output
         else:
-          out_size -= 1
+          out_size = term_columns
+          
 
       #string = string[:position] + new_character + string[position+1:]
       if (columns > 1):
@@ -830,7 +837,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.7 date: 6/25/2022'
+  __version__ = '4.8 date: 7/12/2022'
   if (platform.system() == 'Windows'):
     sys.argv.append('-l')
     os.system('color')

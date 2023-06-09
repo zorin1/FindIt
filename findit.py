@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 '''
+Version 4.9 - 6/9/2023  - Fixed an issue in the code because os.DirEntry.stat() returns 0 for st_dev.  You need to call os.stat().  This caused on windows that the
+                          Free space was not correct.
 Version 4.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
                           than the number columns in the terminal then limit it to column length.
 Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice. 
@@ -125,7 +127,10 @@ class FileInfo:
         self.full = None
 
       try:
-        self.stat = file.stat()
+        if (WINDOWS == True):
+          self.stat = os.stat(file)
+        else:
+          self.stat = file.stat()
       except:
         self.full = None
     else:
@@ -837,8 +842,10 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.8 date: 7/19/2022'
+  __version__ = '4.9 date: 6/9/2023'
+  WINDOWS = False
   if (platform.system() == 'Windows'):
+    WINDOWS = True
     sys.argv.append('-l')
     os.system('color')
   main()

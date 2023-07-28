@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.10 - 7/28/2023 - Added an option to -b to display file size in bytes, also change the precision to 2 decimals.
 Version 4.9 - 6/9/2023  - Fixed an issue in the code because os.DirEntry.stat() returns 0 for st_dev.  You need to call os.stat().  This caused on windows that the
                           Free space was not correct.
 Version 4.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
@@ -255,11 +256,14 @@ def filter_list(flist, args):
   return(retset)
 
 def sizeof_fmt(num, suffix="B"):
-  for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
+  for unit in [" ", "K", "M", "G", "T", "P", "E", "Z"]:
     if abs(num) < 1024.0:
-      return f"{num:3.1f} {unit}{suffix}"
+      if unit == " ":
+        return f"{int(num)} {unit}{suffix}"
+      else:
+        return f"{num:3.2f} {unit}{suffix}"
     num /= 1024.0
-  return f"{num:.1f} Y{suffix}"
+  return f"{num:.2f} Y{suffix}"
 
 def sizeof_fmt_suffix(num, suffix="B"):
   for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
@@ -274,7 +278,7 @@ def print_args(args):
 
   print (args)
 
-def get_file_info(filelist):
+def get_file_info(filelist, args):
 
   dic_file_info={}
   owner_max_len=0
@@ -295,7 +299,10 @@ def get_file_info(filelist):
     imodeoct = f'{oct(fstat.st_mode & 0o7777)[2:].zfill(4)}'
     isize = fstat.st_size
     total_size_used += isize
-    isizefmt = f'{sizeof_fmt(isize)}'
+    if (args.bytes == True):
+      isizefmt = f'{isize:,}'
+    else:
+      isizefmt = f'{sizeof_fmt(isize)}'
     imtime = fstat.st_mtime
     imtime_date = f"{datetime.datetime.fromtimestamp(imtime).strftime('%m/%d/%Y')}"
     imtime_time = f"{datetime.datetime.fromtimestamp(imtime).strftime('%I:%M.%S %p')}"
@@ -721,6 +728,7 @@ def main():
   )
   parser.add_argument("Dirs", help="List of directories or files to search, default is the current dir", nargs='*', default='.')
   parser.add_argument('-a', '--absolute', help='Expand dir.', action='store_true')
+  parser.add_argument('-b', '--bytes', help='Display file size in bytes.', action='store_true')
   parser.add_argument('-c', '--case', help='Case sensitivity.', action='store_true')
   parser.add_argument('--column', help='Display in columns if possible.', action='store_true')
   parser.add_argument('--COLUMN', help='Do not display in columns.', action='store_true')
@@ -821,7 +829,7 @@ def main():
   # stats.sort_stats(pstats.SortKey.TIME)
   # stats.dump_stats(filename='f2_profiling.prof')
 
-  dic_file_info = get_file_info(retset)
+  dic_file_info = get_file_info(retset, args)
 
 
   #a3 = f'get_file_info: {datetime.datetime.now() - start_time}'
@@ -842,7 +850,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.9 date: 6/9/2023'
+  __version__ = '4.10 date: 7/28/2023'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

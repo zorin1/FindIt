@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.11 - 7/29/2023 - Now show directories first.
 Version 4.10 - 7/28/2023 - Added an option to -b to display file size in bytes, also change the precision to 2 decimals.
 Version 4.9 - 6/9/2023  - Fixed an issue in the code because os.DirEntry.stat() returns 0 for st_dev.  You need to call os.stat().  This caused on windows that the
                           Free space was not correct.
@@ -347,6 +348,11 @@ def get_file_info(filelist, args):
       free_space += free
 
     #create dictionary
+    if (x.isdir == True):
+      temp_dic['isdir'] = 'a'
+    else:
+      temp_dic['isdir'] = 'b'
+    
     temp_dic['dir'] = idir 
     temp_dic['name'] = iname
     temp_dic['mode'] = imode
@@ -500,8 +506,10 @@ def print_results(dic_file_info, args):
       k = lambda k:(dic_file_info[k]['mtime'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     elif (args.ordersize == True):
       k = lambda k:(dic_file_info[k]['size'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
-    else:
+    elif (args.name == True):
       k = lambda k:(dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
+    else:
+      k = lambda k:(dic_file_info[k]['isdir'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     for x in sorted(dic_file_info, key = k, reverse=reverse): 
       spinner.spin('Formating Output: ')
       y = dic_file_info[x]
@@ -850,7 +858,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.10 date: 7/28/2023'
+  __version__ = '4.11 date: 7/29/2023'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

@@ -15,7 +15,7 @@ I hope that you find this somewhat useful.
 ```
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [--COLUMN] [-i] [-I] [-e EREGS [EREGS ...]] [-l] [-L] [-f] [-n] [-p] [-P] [--PermOct] [-s] [-S] [-o] [-O] [-g] [-G] [-d] [-D] [-t] [-T] [-m MAXDEPTH] [--COLOR] [--color] [--version] [-R] [-od] [-os] [Dirs ...]
 
-findit.py version: 2.10 date: 7/28/2023
+findit.py version: 2.11 date: 7/29/2023
 This is basically a simple ls and find built into one.
 Run it with no arguments is the same as doing -e "." -m1.
 The -e "." mean match everything, -m1 just shows one level, so the current dir.

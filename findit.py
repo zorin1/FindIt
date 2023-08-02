@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 '''
+Version 4.12 - 8/1/2023 - Now it shows empty directories.
 Version 4.11 - 7/29/2023 - Now show directories first.
 Version 4.10 - 7/28/2023 - Added an option to -b to display file size in bytes, also change the precision to 2 decimals.
 Version 4.9 - 6/9/2023  - Fixed an issue in the code because os.DirEntry.stat() returns 0 for st_dev.  You need to call os.stat().  This caused on windows that the
@@ -160,7 +161,7 @@ class FileInfo:
   def __hash__(self):
     return(hash(self.full))
 
-def scantree(path, depth, dir):
+def scantree2(path, depth, dir):
   """Recursively yield DirEntry objects for given directory."""
   if (depth is not None):
     depth -= 1
@@ -177,6 +178,35 @@ def scantree(path, depth, dir):
           yield from scantree(entry.path, depth, dir) 
         else:
           yield entry
+  except:
+    pass
+
+def scantree(path, depth, dir):
+  """Recursively yield directory paths and file paths for the given directory."""
+  if depth is not None:
+    depth -= 1
+  try:
+    entries = os.scandir(path)
+    is_empty = True
+
+    for entry in entries:
+      spinner.spin('Getting Files Names: ')
+      is_empty = False  # Mark the directory as non-empty if it has any entries
+
+      if (dir == True):
+        if entry.is_dir(follow_symlinks=False) and (depth is None or depth >= 0):
+          yield entry
+          yield from scantree(entry.path, depth, dir)
+      else:
+        if entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0):
+          yield from scantree(entry.path, depth, dir)
+        else:
+          yield entry
+
+    if is_empty:
+      # Directory is empty, yield its path
+      yield Path(path)
+
   except:
     pass
 
@@ -508,8 +538,10 @@ def print_results(dic_file_info, args):
       k = lambda k:(dic_file_info[k]['size'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     elif (args.name == True):
       k = lambda k:(dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
-    else:
+    elif (args.maxdepth == -1):
       k = lambda k:(dic_file_info[k]['isdir'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
+    else:
+      k = lambda k:(dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
     for x in sorted(dic_file_info, key = k, reverse=reverse): 
       spinner.spin('Formating Output: ')
       y = dic_file_info[x]
@@ -858,7 +890,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.11 date: 7/29/2023'
+  __version__ = '4.12 date: 8/1/2023'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

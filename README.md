@@ -13,60 +13,54 @@ I hope that you find this somewhat useful.
 
 # Help Page
 ```
-usage: findit.py [-h] [-a] [-b] [-c] [--column] [--COLUMN] [-i] [-I] [-e EREGS [EREGS ...]] [-l] [-L] [-f] [-n] [-p] [-P] [--PermOct] [-s] [-S] [-o] [-O] [-g] [-G] [-d] [-D] [-t] [-T] [-m MAXDEPTH] [--COLOR] [--color] [--version] [-R] [-od] [-os] [Dirs ...]
+usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
+                [Dirs ...] 
 
-findit.py version: 2.12 date: 8/1/2023
-This is basically a simple ls and find built into one.
-Run it with no arguments is the same as doing -e "." -m1.
-The -e "." mean match everything, -m1 just shows one level, so the current dir.
-You can pass it multiple dirs, and with the -e you can pass it multiple regex.
-If you wanted to search for a file that has the name "hello" in it that might be located in 2 dirs:
+findit.py version: 4.13 date: 3/23/2024 
+This is basically a simple ls and find built into one. 
+Run it with no arguments is the same as doing -e "." -m1. 
+The -e "." mean match everything, -m1 just show one level, so the current dir. 
+You can pass it multiple dirs or files, and with the -e you can pass it multiple regex. 
+If you wanted to search for a file that has the name "hello" in it that might be located in 2 dirs: 
 findit.py ~/Downloads ~/Documents -e "hello"
-If you wanted to find the words "hello" and "hi" you would do:
-findit.py ~/Downloads ~/Documents -e "hello|hi"
+If you wanted to find the words "hello" and "hi" you would do: 
+findit.py ~/Downloads ~/Documents -e "hello|hi" 
 
-positional arguments:
- Dirs                  List of directories to search, default is the current dir
+positional arguments: 
+ Dirs                  List of directories or files to search, default is the current dir 
 
-options:
- -h, --help            show this help message and exit
- -a, --absolute        Expand dir.
- -b, --bytes           Display file size in bytes.
- -c, --case            Case sensitivity.
- --column              Display in columns if possible.
- --COLUMN              Do not display in columns.
- -i, --info            Display info footer.
- -I, --INFO            Do not Display info footer.
- -e EREGS [EREGS ...], --eregs EREGS [EREGS ...]
-                       Multiple regular expressions, default is '.' match everything
- -l, --long            Long output, same as --column -i -m -s -o -g -d -t.
- -L, --LONG            Turn off --COLUMN -I -M -S -O -G -D -T.
- -f, --full            Search on full path dir + name
- -n, --name            Display name without path.
- -p, --permission      Display mode (permissions) of a file.
- -P, --PERMISSION      Do not display mode (permissions) of a file.
- --PermOct             Display permission as octal, but also add the first char from the mode (-p) ie. -0666, d0666 (dir).
- -s, --size            Display file size.
- -S, --SIZE            Do not display file size.
- -o, --owner           Display owner of a file.
- -O, --OWNER           Do not display owner of a file.
- -g, --group           Display group user of a file.
- -G, --GROUP           Do not display group user of a file.
- -d, --date            Display modified date of a file.
- -D, --DATE            Do not modified display date a file.
- -t, --time            Display modified time of file.
- -T, --TIME            Do not display modified time of a file.
- -m MAXDEPTH, --maxdepth MAXDEPTH
-                       How many directory levels to show. If not set then show one level if you don't pass any eregs, otherwise show all.
- --COLOR               Do not display color.
- --color               Display color.
- --version             show the version number and exit
- -R, --reverse         reverse the sort order.
- -od, --orderdate      Order by date.
- -os, --ordersize      Order by size.
+options: 
+ -h, --help            show this help message and exit 
+ -a, --absolute        Expand dir. 
+ -b, --bytes           Display file size in bytes. 
+ -c, --case            Case sensitivity. 
+ --column, --COLUMN    Display in columns if possible. (use --COLUMN to turn off) 
+ -i, -I                Display info footer. (use -I to turn off) 
+ --ids                 Display UID and GID instead of user and group names. Takes precedence over -x. Best if used with -o and/or -g. 
+ -e EREGS [EREGS ...], --eregs EREGS [EREGS ...] 
+                       Multiple regular expressions, default is '.' match everything 
+ -l, -L                Long output, same as --column -i -m -s -o -g -d -t --progress. (use -L to turn off) 
+ -f, --full            Search on full path dir + name 
+ -n, --name            Display name without path. 
+ -p, -P                Display mode (permissions) of a file. (use -P to turn off) 
+ --PermOct             Display permission as octal, but also add the first char from the mode (-p) ie. -0666, d0666 (dir). 
+ --progress, --PROGRESS 
+                       Display progress spinner. (use --PROGRESS to turn off) 
+ -s, -S                Display file size. (use -S to turn off) 
+ -o, -O                Display owner of a file. (use -O to turn off) 
+ -g, -G                Display group user of a file. (use -P to turn off) 
+ -d, -D                Display modified date of a file. (use -D to turn off) 
+ -t, -T                Display modified time of file. (use -T to turn off) 
+ -m MAXDEPTH, --maxdepth MAXDEPTH 
+                       How many directory levels to show. If not set then show all. 
+ --color, --COLOR      Display color. (use --COLOR to turn off) 
+ -x, --truncate_names  Truncate user and group names to remove domain part. Best if used with -o and/or -g. 
+ --version             show the version number and exit 
+ -R, --reverse         reverse the sort order. 
+ -od, --orderdate      Order by date. 
+ -os, --ordersize      Order by size. 
+ -Dir, --Dir           Display Directories only.
 ```
-
-
 
 # Usage:
 

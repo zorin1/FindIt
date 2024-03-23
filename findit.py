@@ -1,5 +1,6 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 '''
+Version 4.13 - 3/23/2024 - Change the way the args work, added -x (to get rid of domain name from user/group names) and --ids (display name and group ids)
 Version 4.12 - 8/1/2023 - Now it shows empty directories.
 Version 4.11 - 7/29/2023 - Now show directories first.
 Version 4.10 - 7/28/2023 - Added an option to -b to display file size in bytes, also change the precision to 2 decimals.
@@ -37,6 +38,7 @@ Version 2.3 - 4/19/2022 - rewrote the dir split into left and right parts, added
 Version 2.2 - Rewrote the print results, now split the dir into left and right parts and print them.
 Version 2.1 - add -f for full path search
 Version 2 - added -o -t -m'''
+
 import os
 import sys
 import shutil
@@ -99,6 +101,18 @@ class spinner():
 def msg(msg1, clr=''):
   print(f'{clr}{msg1}{style.RESET}')
 
+class ToggleAction(argparse.Action):
+  def __init__(self, option_strings, dest, default=None, help=None):
+    super(ToggleAction, self).__init__(option_strings=option_strings, dest=dest, nargs=0, default=default, help=help)
+    self.has_been_toggled_off = False
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    if option_string.isupper():
+      setattr(namespace, self.dest, False)
+      self.has_been_toggled_off = True
+    elif option_string.islower() and not self.has_been_toggled_off:
+      setattr(namespace, self.dest, True)
+
 class FileInfo:
   '''
   full is the main element, this is what the hash is based off of.
@@ -160,26 +174,6 @@ class FileInfo:
   
   def __hash__(self):
     return(hash(self.full))
-
-def scantree2(path, depth, dir):
-  """Recursively yield DirEntry objects for given directory."""
-  if (depth is not None):
-    depth -= 1
-  try:
-    for entry in os.scandir(path):
-      spinner.spin('Getting Files Names: ')
-      #only get direcotries
-      if (dir == True):
-        if (entry.is_dir(follow_symlinks=False) and (depth is None or depth >= 0)):
-          yield entry
-          yield from scantree(entry.path, depth, dir) 
-      else:
-        if (entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0)):
-          yield from scantree(entry.path, depth, dir) 
-        else:
-          yield entry
-  except:
-    pass
 
 def scantree(path, depth, dir):
   """Recursively yield directory paths and file paths for the given directory."""
@@ -268,8 +262,6 @@ def match_file(file, cregex, full):
       break
   return(match)
 
-
-
 def filter_list(flist, args):
   retset = set()
   for file in flist:
@@ -338,21 +330,45 @@ def get_file_info(filelist, args):
     imtime_date = f"{datetime.datetime.fromtimestamp(imtime).strftime('%m/%d/%Y')}"
     imtime_time = f"{datetime.datetime.fromtimestamp(imtime).strftime('%I:%M.%S %p')}"
     try:
-      if (fstat.st_uid not in dic_owner):
-        dic_owner[fstat.st_uid] = Path(str(x)).owner()
+      if (args.ids == True):
+        iowner = f'{fstat.st_uid}'
+        iowner_max = len(iowner)
+      else:
+        uid_name = Path(str(x)).owner()
+        if (fstat.st_uid not in dic_owner):
+          if (args.truncate_names == True):
+            uid_name_splt = uid_name.split('@')
+            if (len(uid_name_splt) > 1):
+              dic_owner[fstat.st_uid] = uid_name_splt[0] + '@'
+            else:
+              dic_owner[fstat.st_uid] = uid_name
+          else:
+            dic_owner[fstat.st_uid] = uid_name 
 
-      iowner = f'{dic_owner[fstat.st_uid]}'
-      iowner_max = len(iowner)
+        iowner = f'{dic_owner[fstat.st_uid]}'
+        iowner_max = len(iowner)
     except:
       iowner = f'{fstat.st_uid}'
       iowner_max = len(iowner)
 
     try: 
-      if (fstat.st_gid not in dic_group):
-        dic_group[fstat.st_gid] = Path(str(x)).group()
+      if (args.ids == True):
+        igroup = f'{fstat.st_gid}'
+        igroup_max = len(igroup)
+      else:
+        gid_name = Path(str(x)).group()
+        if (fstat.st_gid not in dic_group):
+          if (args.truncate_names == True):
+            gid_name_splt = gid_name.split('@')
+            if (len(gid_name_splt) > 1):
+              dic_group[fstat.st_gid] = gid_name_splt[0] + '@'
+            else:
+              dic_group[fstat.st_gid] = gid_name
+          else:
+            dic_group[fstat.st_gid] = gid_name
 
-      igroup = f'{dic_group[fstat.st_gid]}'
-      igroup_max = len(igroup)
+        igroup = f'{dic_group[fstat.st_gid]}'
+        igroup_max = len(igroup)
     except:
       igroup = f'{fstat.st_gid}'
       igroup_max = len(igroup)
@@ -462,7 +478,7 @@ def print_results(dic_file_info, args):
       atime = True
       ainfo = True
       acolumn = True
-  if (args.LONG == True):
+  if (args.long == False):
     amode = False
     amodeoct = False
     asize = False
@@ -473,42 +489,24 @@ def print_results(dic_file_info, args):
     ainfo = False
     acolumn = False
 
-  if (args.permission == True):
-    amode = True
+  if (args.permission is not None):
+    amode = args.permission
   if (args.PermOct == True):
     amodeoct = True
-  if (args.size == True):
-    asize = True
-  if (args.owner == True):
-    aowner = True
-  if (args.group == True):
-    agroup = True
-  if (args.date == True):
-    adate = True
-  if (args.time == True):
-    atime = True
-  if (args.info == True):
-    ainfo = True
-  if (args.column == True):
-    acolumn = True
-
-  if (args.PERMISSION == True):
-    amode = False
-  if (args.SIZE == True):
-    asize = False
-  if (args.OWNER == True):
-    aowner = False
-  if (args.GROUP == True):
-    agroup = False
-  if (args.DATE == True):
-    adate = False
-  if (args.TIME == True):
-    atime = False
-  if (args.INFO == True):
-    ainfo = False
-  if (args.COLUMN == True):
-    acolumn = False
-
+  if (args.size is not None):
+    asize = args.size
+  if (args.owner is not None):
+    aowner = args.owner
+  if (args.group is not None):
+    agroup = args.group
+  if (args.date is not None):
+    adate = args.date
+  if (args.time is not None):
+    atime = args.time
+  if (args.info is not None):
+    ainfo = args.info
+  if (args.column is not None):
+    acolumn = args.column
   if (args.reverse == True):
     reverse = True
   else:
@@ -770,34 +768,24 @@ def main():
   parser.add_argument('-a', '--absolute', help='Expand dir.', action='store_true')
   parser.add_argument('-b', '--bytes', help='Display file size in bytes.', action='store_true')
   parser.add_argument('-c', '--case', help='Case sensitivity.', action='store_true')
-  parser.add_argument('--column', help='Display in columns if possible.', action='store_true')
-  parser.add_argument('--COLUMN', help='Do not display in columns.', action='store_true')
-  parser.add_argument('-i', '--info', help='Display info footer.', action='store_true')
-  parser.add_argument('-I', '--INFO', help='Do not Display info footer.', action='store_true')
-
+  parser.add_argument('--column', '--COLUMN', action=ToggleAction, dest='column', help='Display in columns if possible. (use --COLUMN to turn off)')
+  parser.add_argument('-i', '-I', action=ToggleAction, dest='info', help='Display info footer. (use -I to turn off)')
+  parser.add_argument('--ids', help='Display UID and GID instead of user and group names.  Takes precedence over -x.  Best if used with -o and/or -g.', action='store_true')
   parser.add_argument('-e', '--eregs', help="Multiple regular expressions, default is '.' match everything", nargs='+', default='.')
-  parser.add_argument('-l', '--long', help="Long output, same as --column -i -m -s -o -g -d -t --progress.", action='store_true')
-  parser.add_argument('-L', '--LONG', help="Turn off --COLUMN -I -M -S -O -G -D -T --PROGRESS.", action='store_true')
+  parser.add_argument('-l', '-L', action=ToggleAction, dest='long', help="Long output, same as --column -i -m -s -o -g -d -t --progress. (use -L to turn off)")
   parser.add_argument('-f', '--full', help='Search on full path dir + name', action='store_true')
   parser.add_argument('-n', '--name', help='Display name without path.', action='store_true')
-  parser.add_argument('-p', '--permission', help='Display mode (permissions) of a file.', action='store_true')
-  parser.add_argument('-P', '--PERMISSION', help='Do not display mode (permissions) of a file.', action='store_true')
+  parser.add_argument('-p', '-P', action=ToggleAction, dest='permission', help='Display mode (permissions) of a file. (use -P to turn off)')
   parser.add_argument('--PermOct', help='Display permission as octal, but also add the first char from the mode (-p) ie. -0666, d0666 (dir).', action='store_true')
-  parser.add_argument('--progress',  help='Display progress spinner.', action='store_true')
-  parser.add_argument('--PROGRESS',  help='Do not display progress spinner.', action='store_true')
-  parser.add_argument('-s', '--size', help='Display file size.', action='store_true')
-  parser.add_argument('-S', '--SIZE', help='Do not display file size.', action='store_true')
-  parser.add_argument('-o', '--owner', help='Display owner of a file.', action='store_true')
-  parser.add_argument('-O', '--OWNER', help='Do not display owner of a file.', action='store_true')
-  parser.add_argument('-g', '--group', help='Display group user of a file.', action='store_true')
-  parser.add_argument('-G', '--GROUP', help='Do not display group user of a file.', action='store_true')
-  parser.add_argument('-d', '--date', help='Display modified date of a file.', action='store_true')
-  parser.add_argument('-D', '--DATE', help='Do not modified display date  a file.', action='store_true')
-  parser.add_argument('-t', '--time', help='Display modified time of file.', action='store_true')
-  parser.add_argument('-T', '--TIME', help='Do not display modified time of a file.', action='store_true')
+  parser.add_argument('--progress', '--PROGRESS', action=ToggleAction, dest='progress',  help='Display progress spinner. (use --PROGRESS to turn off)')
+  parser.add_argument('-s', '-S', action=ToggleAction, dest='size', help='Display file size. (use -S to turn off)')
+  parser.add_argument('-o', '-O', action=ToggleAction, dest='owner', help='Display owner of a file. (use -O to turn off)')
+  parser.add_argument('-g', '-G', action=ToggleAction, dest='group', help='Display group user of a file. (use -P to turn off)')
+  parser.add_argument('-d', '-D', action=ToggleAction, dest='date', help='Display modified date of a file. (use -D to turn off)')
+  parser.add_argument('-t', '-T', action=ToggleAction, dest='time', help='Display modified time of file. (use -T to turn off)')
   parser.add_argument('-m', '--maxdepth', type=int, help='How many directory levels to show.  If not set then show all.', default=-1)
-  parser.add_argument('--COLOR', help='Do not display color.', action='store_true')
-  parser.add_argument('--color', help='Display color.', action='store_true')
+  parser.add_argument('--color', '--COLOR', action=ToggleAction, dest='color', help='Display color. (use --COLOR to turn off)')
+  parser.add_argument('-x', '--truncate_names', help='Truncate user and group names to remove domain part.  Best if used with -o and/or -g.', action='store_true')
   parser.add_argument('--version', action='version', version=(f'%(prog)s version: {__version__}'), help = 'show the version number and exit')
   parser.add_argument('-R', '--reverse', help='reverse the sort order.', action='store_true')
   parser.add_argument('-od', '--orderdate', help='Order by date.', action='store_true')
@@ -817,16 +805,14 @@ def main():
 
   if (args.long == True):
     spinner.display_spinner = True
-  if (args.LONG == True):
+  if (args.long == False):
     spinner.display_spinner = False
 
-  if (args.progress == True):
-    spinner.display_spinner = True
-  if (args.PROGRESS == True):
-    spinner.display_spinner = False
+  if (args.progress is not None):
+    spinner.display_spinner = args.progress
 
-  if (((os.fstat(0) != os.fstat(1)) or args.COLOR == True ) and args.color == False):
-    clear_style()
+  if (((os.fstat(0) != os.fstat(1)) and args.color is None ) or args.color == False):
+    clear_style() # turns off color
     spinner.display_spinner = False
 
 
@@ -890,7 +876,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.12 date: 8/1/2023'
+  __version__ = '4.13 date: 3/23/2024'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

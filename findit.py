@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 '''
+Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.  
 Version 4.13 - 3/23/2024 - Change the way the args work, added -x (to get rid of domain name from user/group names) and --ids (display name and group ids)
 Version 4.12 - 8/1/2023 - Now it shows empty directories.
 Version 4.11 - 7/29/2023 - Now show directories first.
@@ -756,7 +757,7 @@ def main():
                 f'This is basically a simple ls and find built into one.\n' +
                 f'Run it with no arguments is the same as doing -e "." -m1.\n' +
                 f'The -e "." mean match everything, -m1 just show one level, so the current dir.\n' +
-                f'You can pass it multiple dirs or files, and with the -e you can pass it mutiple regex.\n' +
+                f'You can pass it multiple dirs or files, and with the -e you can pass it multiple regex.\n' +
                 f'If you wanted to search for a file that has the name "hello" in it that might be located in 2 dirs:\n' +
                 f'findit.py ~/Downloads ~/Documents -e "hello"\n' +
                 f'If you wanted to find the words "hello" and "hi" you would do:\n' +
@@ -785,7 +786,7 @@ def main():
   parser.add_argument('-t', '-T', action=ToggleAction, dest='time', help='Display modified time of file. (use -T to turn off)')
   parser.add_argument('-m', '--maxdepth', type=int, help='How many directory levels to show.  If not set then show all.', default=-1)
   parser.add_argument('--color', '--COLOR', action=ToggleAction, dest='color', help='Display color. (use --COLOR to turn off)')
-  parser.add_argument('-x', '--truncate_names', help='Truncate user and group names to remove domain part.  Best if used with -o and/or -g.', action='store_true')
+  parser.add_argument('-x', '-X', action=ToggleAction, dest='truncate_names', help='Truncate user and group names to remove domain part.  Best if used with -o and/or -g. (use -X to turn off)')
   parser.add_argument('--version', action='version', version=(f'%(prog)s version: {__version__}'), help = 'show the version number and exit')
   parser.add_argument('-R', '--reverse', help='reverse the sort order.', action='store_true')
   parser.add_argument('-od', '--orderdate', help='Order by date.', action='store_true')
@@ -876,7 +877,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.13 date: 3/23/2024'
+  __version__ = '4.14 date: 3/26/2024'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

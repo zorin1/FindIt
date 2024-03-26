@@ -16,7 +16,7 @@ I hope that you find this somewhat useful.
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
                 [Dirs ...] 
 
-findit.py version: 4.13 date: 3/23/2024 
+findit.py version: 4.14 date: 3/26/2024 
 This is basically a simple ls and find built into one. 
 Run it with no arguments is the same as doing -e "." -m1. 
 The -e "." mean match everything, -m1 just show one level, so the current dir. 
@@ -54,7 +54,7 @@ options:
  -m MAXDEPTH, --maxdepth MAXDEPTH 
                        How many directory levels to show. If not set then show all. 
  --color, --COLOR      Display color. (use --COLOR to turn off) 
- -x, --truncate_names  Truncate user and group names to remove domain part. Best if used with -o and/or -g. 
+ -x, --truncate_names  Truncate user and group names to remove domain part. Best if used with -o and/or -g. (use -X to turn off) 
  --version             show the version number and exit 
  -R, --reverse         reverse the sort order. 
  -od, --orderdate      Order by date. 

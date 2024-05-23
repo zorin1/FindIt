@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-'''
+r'''
+Version 4.15 - 5/23/2024 - got rid of warning messages because of python 3.12
 Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.  
 Version 4.13 - 3/23/2024 - Change the way the args work, added -x (to get rid of domain name from user/group names) and --ids (display name and group ids)
 Version 4.12 - 8/1/2023 - Now it shows empty directories.
@@ -68,7 +69,7 @@ def clear_style():
   style.UNDERLINE = ''; style.RESET = ''
 
 class spinner():
-  spinner = '\|/-'
+  spinner = r'\|/-'
   counter = 0
   index = 0
   prev_title = ''
@@ -621,7 +622,7 @@ def print_results(dic_file_info, args):
 
       out1 = out + name 
 
-      out_size = len(re.sub('\033\[[0-9]*m', '', out1))
+      out_size = len(re.sub(r'\033\[[0-9]*m', '', out1))
       answer = sum(1 for ch in out1 if unicodedata.combining(ch) != 0)
       out_size -= answer
       if (max_output <= out_size):
@@ -682,7 +683,7 @@ def print_results(dic_file_info, args):
       #info1 = f'Files: {files}     Dirs: {dirs}    Used:{sizeof_fmt(total_size_used)}    Free:{sizeof_fmt(free_space)}'
       info = f'Files: {files:,}    Dirs: {dirs:,}    Used: {total_size_used:,}({sizeof_fmt_suffix(total_size_used)})    Free: {free_space:,}({sizeof_fmt_suffix(free_space)})'
       #strips out any color codes and then counts
-      out_size = len(re.sub('\033\[[0-9]*m', '', out))
+      out_size = len(re.sub(r'\033\[[0-9]*m', '', out))
       if (columns > 1):
         out_size = term_columns
       else:
@@ -725,7 +726,7 @@ def print_results(dic_file_info, args):
           inx = (col * lines_per_column) + lin 
           if (inx < output_lines):
             lendiff = 0
-            colors = re.findall('\033\[[0-9]*m', output_lst[inx])
+            colors = re.findall(r'\033\[[0-9]*m', output_lst[inx])
             for i in colors:
               lendiff += len(i)
             #d = re.sub('\033\[[0-9]*m', '', output_lst[inx])
@@ -877,7 +878,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.14 date: 3/26/2024'
+  __version__ = '4.15 date: 5/23/2024'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

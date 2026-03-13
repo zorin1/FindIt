@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 r'''
+Version 4.16 - 3/13/2026 - AI made some performance tuning. 
 Version 4.15 - 5/23/2024 - got rid of warning messages because of python 3.12
 Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.  
 Version 4.13 - 3/23/2024 - Change the way the args work, added -x (to get rid of domain name from user/group names) and --ids (display name and group ids)
@@ -51,6 +52,8 @@ import stat
 import datetime
 import platform
 import unicodedata
+import pwd
+import grp
 
 class style():
   redirect = False
@@ -315,6 +318,14 @@ def get_file_info(filelist, args):
   dic_owner = {}
   dic_group = {}
 
+  try:
+    getpwuid = pwd.getpwuid
+  except AttributeError:
+    getpwuid = None
+  try:
+    getgrgid = grp.getgrgid
+  except AttributeError:
+    getgrgid = None
 
   for x in filelist:
     temp_dic={}
@@ -329,25 +340,33 @@ def get_file_info(filelist, args):
     else:
       isizefmt = f'{sizeof_fmt(isize)}'
     imtime = fstat.st_mtime
-    imtime_date = f"{datetime.datetime.fromtimestamp(imtime).strftime('%m/%d/%Y')}"
-    imtime_time = f"{datetime.datetime.fromtimestamp(imtime).strftime('%I:%M.%S %p')}"
+    imtime_dt = datetime.datetime.fromtimestamp(imtime)
+    imtime_date = imtime_dt.strftime('%m/%d/%Y')
+    imtime_time = imtime_dt.strftime('%I:%M.%S %p')
     try:
       if (args.ids == True):
         iowner = f'{fstat.st_uid}'
         iowner_max = len(iowner)
       else:
-        uid_name = Path(str(x)).owner()
-        if (fstat.st_uid not in dic_owner):
+        uid = fstat.st_uid
+        if uid not in dic_owner:
+          if getpwuid:
+            try:
+              uid_name = getpwuid(uid).pw_name
+            except (KeyError, AttributeError):
+              uid_name = str(uid)
+          else:
+            uid_name = str(uid)
           if (args.truncate_names == True):
             uid_name_splt = uid_name.split('@')
             if (len(uid_name_splt) > 1):
-              dic_owner[fstat.st_uid] = uid_name_splt[0] + '@'
+              dic_owner[uid] = uid_name_splt[0] + '@'
             else:
-              dic_owner[fstat.st_uid] = uid_name
+              dic_owner[uid] = uid_name
           else:
-            dic_owner[fstat.st_uid] = uid_name 
+            dic_owner[uid] = uid_name
 
-        iowner = f'{dic_owner[fstat.st_uid]}'
+        iowner = dic_owner[uid]
         iowner_max = len(iowner)
     except:
       iowner = f'{fstat.st_uid}'
@@ -358,18 +377,25 @@ def get_file_info(filelist, args):
         igroup = f'{fstat.st_gid}'
         igroup_max = len(igroup)
       else:
-        gid_name = Path(str(x)).group()
-        if (fstat.st_gid not in dic_group):
+        gid = fstat.st_gid
+        if gid not in dic_group:
+          if getgrgid:
+            try:
+              gid_name = getgrgid(gid).gr_name
+            except (KeyError, AttributeError):
+              gid_name = str(gid)
+          else:
+            gid_name = str(gid)
           if (args.truncate_names == True):
             gid_name_splt = gid_name.split('@')
             if (len(gid_name_splt) > 1):
-              dic_group[fstat.st_gid] = gid_name_splt[0] + '@'
+              dic_group[gid] = gid_name_splt[0] + '@'
             else:
-              dic_group[fstat.st_gid] = gid_name
+              dic_group[gid] = gid_name
           else:
-            dic_group[fstat.st_gid] = gid_name
+            dic_group[gid] = gid_name
 
-        igroup = f'{dic_group[fstat.st_gid]}'
+        igroup = dic_group[gid]
         igroup_max = len(igroup)
     except:
       igroup = f'{fstat.st_gid}'
@@ -878,7 +904,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.15 date: 5/23/2024'
+  __version__ = '4.16 date: 3/13/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

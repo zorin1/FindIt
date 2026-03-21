@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 r'''
-Version 4.16 - 3/13/2026 - AI made some performance tuning. 
+Version 4.17 - 3/21/2026 - Fixed cross-platform import of pwd and grp for Windows compatibility.
 Version 4.15 - 5/23/2024 - got rid of warning messages because of python 3.12
-Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.  
+Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.
 Version 4.13 - 3/23/2024 - Change the way the args work, added -x (to get rid of domain name from user/group names) and --ids (display name and group ids)
 Version 4.12 - 8/1/2023 - Now it shows empty directories.
 Version 4.11 - 7/29/2023 - Now show directories first.
@@ -11,15 +11,15 @@ Version 4.9 - 6/9/2023  - Fixed an issue in the code because os.DirEntry.stat() 
                           Free space was not correct.
 Version 4.8 - 7/19/2022 - Change the header and footer bar to be the same length as the output line.  If the output line is longer
                           than the number columns in the terminal then limit it to column length.
-Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice. 
+Version 4.7 - 6/25/2022 - Got rid of duplicate files if you Dirs overlap like / /home, home would be listed twice.
 Version 4.6 - 6/24/2022 - Fixed a bug where it would not display the directory root that is passed to it.
 Version 4.5 - 6/17/2022 - Fixed a display issue when there is not enough files per column.
-Version 4.4 - 6/16/2022 - Changed when the column separator is printed. 
+Version 4.4 - 6/16/2022 - Changed when the column separator is printed.
                           Added a top line and better graphic line chars.
 Version 4.3 - 6/11/2022 - Added -Dir which will display only directories.  If you combine this with -e then it only matches on the top most directory.
 Version 4.2 - 6/11/2022 - Fixed an issue where the os.sep was left out when you run findit on a given file.
 Version 4.1 - 5/29/2022 - Speed improvements now filter on get_files.  Fixed an issues where it throws an error when you don't have access to a dir.
-                          Added commas to number of files and directories. 
+                          Added commas to number of files and directories.
                           Add a progress bar so that you know things are not stuck.
                           Added two new options --progress and --PROGRESS and added --progress to -l.
 Version 4.0 - 5/18/2022 - Speed improvements when getting a list of files, slower when you filter the list.
@@ -33,10 +33,10 @@ Version 2.6 - 4/23/2022 - Now split up extra spaces between columns.
 Version 2.5 - 4/22/2022 - Now display in column if you use the --column, which was added to the -l.
 Version 2.4 - 4/19/2022 - Now works if you parse -e with '' around the search results in windows.
                           In windows, now if you do a -a it does the split by changing everything to lower, because the Drive letter
-                          will not change case so d:\GIT is not the same as D:\GIT when you do the resolve. 
+                          will not change case so d:\GIT is not the same as D:\GIT when you do the resolve.
                           Added sorting for date, size, and the default of dir/name.
                           Changed defaults for -l when run from windows turn of -G -O since they don't make sense.
-Version 2.3 - 4/19/2022 - rewrote the dir split into left and right parts, added -PermOct, Changed first char color of both modes.  
+Version 2.3 - 4/19/2022 - rewrote the dir split into left and right parts, added -PermOct, Changed first char color of both modes.
                           Now prints in color in windows.
 Version 2.2 - Rewrote the print results, now split the dir into left and right parts and print them.
 Version 2.1 - add -f for full path search
@@ -52,8 +52,12 @@ import stat
 import datetime
 import platform
 import unicodedata
-import pwd
-import grp
+try:
+    import pwd
+    import grp
+except ImportError:
+    pwd = None
+    grp = None
 
 class style():
   redirect = False
@@ -318,14 +322,8 @@ def get_file_info(filelist, args):
   dic_owner = {}
   dic_group = {}
 
-  try:
-    getpwuid = pwd.getpwuid
-  except AttributeError:
-    getpwuid = None
-  try:
-    getgrgid = grp.getgrgid
-  except AttributeError:
-    getgrgid = None
+  getpwuid = getattr(pwd, 'getpwuid', None) if pwd else None
+  getgrgid = getattr(grp, 'getgrgid', None) if grp else None
 
   for x in filelist:
     temp_dic={}
@@ -904,7 +902,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '4.16 date: 3/13/2026'
+  __version__ = '4.17 date: 3/20/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

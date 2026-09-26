@@ -213,24 +213,27 @@ def scantree(path, depth, dir):
     is_empty = True
     subdirs = []
     with entries:
-      for entry in entries:
-        spinner.spin('Getting Files Names: ')
-        is_empty = False  # Mark the directory as non-empty if it has any entries
-        try:
-          is_dir = entry.is_dir(follow_symlinks=False)
-        except OSError:
-          continue
-        if is_dir and (cur_depth is None or cur_depth >= 0):
-          scan_dirs += 1
-        if (dir == True):
+      try:
+        for entry in entries:
+          spinner.spin('Getting Files Names: ')
+          is_empty = False  # Mark the directory as non-empty if it has any entries
+          try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+          except OSError:
+            continue
           if is_dir and (cur_depth is None or cur_depth >= 0):
-            yield entry
-            subdirs.append(entry.path)
-        else:
-          if is_dir and (cur_depth is None or cur_depth > 0):
-            subdirs.append(entry.path)
+            scan_dirs += 1
+          if (dir == True):
+            if is_dir and (cur_depth is None or cur_depth >= 0):
+              yield entry
+              subdirs.append(entry.path)
           else:
-            yield entry
+            if is_dir and (cur_depth is None or cur_depth > 0):
+              subdirs.append(entry.path)
+            else:
+              yield entry
+      except OSError:
+        continue
     if is_empty:
       # Directory is empty, yield its path
       yield Path(cur_path)
@@ -874,7 +877,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '5.00 date: 9/26/2026'
+  __version__ = '5.01 date: 9/26/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

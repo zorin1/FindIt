@@ -16,7 +16,7 @@ I hope that you find this somewhat useful.
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
                 [Dirs ...] 
 
-findit.py version: 5.00 date: 9/26/2026 
+findit.py version: 5.01 date: 9/26/2026 
 This is basically a simple ls and find built into one. 
 Run it with no arguments is the same as doing -e "." -m1. 
 The -e "." mean match everything, -m1 just show one level, so the current dir. 
@@ -61,6 +61,10 @@ options:
  -os, --ordersize      Order by size. 
   -Dir, --Dir          Display Directories only.
 ```
+
+# What's new in version 5.01
+
+Fixed a crash when scanning directories that return I/O errors (errno 5). The scanner now gracefully skips directories that fail during iteration instead of crashing the entire program.
 
 # What's new in version 5.00
 

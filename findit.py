@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 r'''
+Version 5.00 - 9/26/2026 - Performance: per-file syscalls removed (cached getcwd, scandir-cached stat on Windows),
+                           per-line width calc hoisted out of the column loop, faster date formatting.
+                           scantree is now iterative (deep trees no longer hit the recursion limit) and isolates
+                           scan errors per entry instead of silently aborting a directory.
+                           Fixed the Dirs footer to count all directories scanned, so it matches -Dir at any depth.
 Version 4.17 - 3/21/2026 - Fixed cross-platform import of pwd and grp for Windows compatibility.
 Version 4.15 - 5/23/2024 - got rid of warning messages because of python 3.12
 Version 4.14 - 3/26/2024 - Added -X to turn off the domain name stripping.
@@ -44,20 +49,28 @@ Version 2 - added -o -t -m'''
 
 import os
 import sys
+import time
 import shutil
 from pathlib import Path
 import argparse
 import re
 import stat
-import datetime
 import platform
 import unicodedata
 try:
     import pwd
     import grp
 except ImportError:
-    pwd = None
-    grp = None
+  pwd = None
+  grp = None
+
+_CWD = os.getcwd()
+_ESC = re.compile(r'\033\[[0-9]*m')
+
+def _abspath(p):
+  if os.path.isabs(p):
+    return os.path.normpath(p)
+  return os.path.normpath(os.path.join(_CWD, p))
 
 class style():
   redirect = False
@@ -95,8 +108,10 @@ class spinner():
     return(ret)
 
   def spin(title = ''):
+    if (spinner.display_spinner == False):
+      return
     index = spinner.get_count()
-    if (index != -1 and spinner.display_spinner == True):
+    if (index != -1):
       #remove previous title
       if (title != spinner.prev_title):
         t = len(spinner.prev_title) + 1
@@ -141,7 +156,7 @@ class FileInfo:
     Takes either a Path or os.DirEntry
     '''
     if (type(file) == os.DirEntry):
-      self.full = os.path.abspath(file.path)
+      self.full = _abspath(file.path)
       self.name = file.name
       try:
         self.isdir = file.is_dir()
@@ -153,14 +168,11 @@ class FileInfo:
         self.full = None
 
       try:
-        if (WINDOWS == True):
-          self.stat = os.stat(file)
-        else:
-          self.stat = file.stat()
+        self.stat = file.stat()
       except:
         self.full = None
     else:
-      self.full = os.path.abspath(file)
+      self.full = _abspath(file)
       self.name = file.name
       self.isdir = file.is_dir()
       if (self.isdir == True):
@@ -184,37 +196,51 @@ class FileInfo:
   def __hash__(self):
     return(hash(self.full))
 
+scan_dirs = 0
+
 def scantree(path, depth, dir):
   """Recursively yield directory paths and file paths for the given directory."""
-  if depth is not None:
-    depth -= 1
-  try:
-    entries = os.scandir(path)
+  global scan_dirs
+  stack = [(path, depth)]
+  while stack:
+    cur_path, cur_depth = stack.pop()
+    if cur_depth is not None:
+      cur_depth -= 1
+    try:
+      entries = os.scandir(cur_path)
+    except OSError:
+      continue
     is_empty = True
-
-    for entry in entries:
-      spinner.spin('Getting Files Names: ')
-      is_empty = False  # Mark the directory as non-empty if it has any entries
-
-      if (dir == True):
-        if entry.is_dir(follow_symlinks=False) and (depth is None or depth >= 0):
-          yield entry
-          yield from scantree(entry.path, depth, dir)
-      else:
-        if entry.is_dir(follow_symlinks=False) and (depth is None or depth > 0):
-          yield from scantree(entry.path, depth, dir)
+    subdirs = []
+    with entries:
+      for entry in entries:
+        spinner.spin('Getting Files Names: ')
+        is_empty = False  # Mark the directory as non-empty if it has any entries
+        try:
+          is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+          continue
+        if is_dir and (cur_depth is None or cur_depth >= 0):
+          scan_dirs += 1
+        if (dir == True):
+          if is_dir and (cur_depth is None or cur_depth >= 0):
+            yield entry
+            subdirs.append(entry.path)
         else:
-          yield entry
-
+          if is_dir and (cur_depth is None or cur_depth > 0):
+            subdirs.append(entry.path)
+          else:
+            yield entry
     if is_empty:
       # Directory is empty, yield its path
-      yield Path(path)
-
-  except:
-    pass
+      yield Path(cur_path)
+    for subdir in reversed(subdirs):
+      stack.append((subdir, cur_depth))
 
 def get_files(sourceDir, maxdepth, args):
   """Get a list of file"""
+  global scan_dirs
+  scan_dirs = 0
   retset = set()
   if (maxdepth < 1 ):
     maxdepth = None
@@ -232,6 +258,7 @@ def get_files(sourceDir, maxdepth, args):
         fileinfo = FileInfo(sdir)
         if (fileinfo.full is not None):
           retset.add(fileinfo)
+          scan_dirs += 1
 
       if (str(Path.cwd()) == str(sdir.resolve())):
         predir = str(sdir) + os.sep + '..'
@@ -239,6 +266,7 @@ def get_files(sourceDir, maxdepth, args):
           fileinfo = FileInfo(Path(predir))
           if (fileinfo.full is not None):
               retset.add(fileinfo)
+              scan_dirs += 1
 
     for entry in scantree(sdir, maxdepth, args.Dir):
       if (match_file(entry, args.eregs, args.full) == True):
@@ -271,22 +299,6 @@ def match_file(file, cregex, full):
       break
   return(match)
 
-def filter_list(flist, args):
-  retset = set()
-  for file in flist:
-    # full means directory and file name
-    if (args.full == True):
-      f = f"{str(file.full)}"
-    else:
-      f = f"{file.name}"
-    if (str(file) == '.'):
-      f = f"{str(file)}"
-
-    if (match_file(f, args.eregs, args.full) == True):
-      retset.add(file)
-
-  return(retset)
-
 def sizeof_fmt(num, suffix="B"):
   for unit in [" ", "K", "M", "G", "T", "P", "E", "Z"]:
     if abs(num) < 1024.0:
@@ -304,12 +316,6 @@ def sizeof_fmt_suffix(num, suffix="B"):
     num /= 1024.0
   return f"Y{suffix}"
   
-def print_args(args):
-  '''
-  print out the args'''
-
-  print (args)
-
 def get_file_info(filelist, args):
 
   dic_file_info={}
@@ -338,9 +344,9 @@ def get_file_info(filelist, args):
     else:
       isizefmt = f'{sizeof_fmt(isize)}'
     imtime = fstat.st_mtime
-    imtime_dt = datetime.datetime.fromtimestamp(imtime)
-    imtime_date = imtime_dt.strftime('%m/%d/%Y')
-    imtime_time = imtime_dt.strftime('%I:%M.%S %p')
+    imtime_lt = time.localtime(imtime)
+    imtime_date = time.strftime('%m/%d/%Y', imtime_lt)
+    imtime_time = time.strftime('%I:%M.%S %p', imtime_lt)
     try:
       if (args.ids == True):
         iowner = f'{fstat.st_uid}'
@@ -413,9 +419,13 @@ def get_file_info(filelist, args):
     if (len(isizefmt) > size_max_len):
       size_max_len = len(isizefmt)
 
-    #get free space by st_dev
-    if (fstat.st_dev not in st_dev):
-      st_dev.add(fstat.st_dev)
+    #get free space by st_dev; on Windows DirEntry.stat() reports st_dev 0, so key on the drive letter
+    if (WINDOWS == True):
+      dev_key = os.path.splitdrive(x.full)[0]
+    else:
+      dev_key = fstat.st_dev
+    if (dev_key not in st_dev):
+      st_dev.add(dev_key)
       total, used, free = shutil.disk_usage(idir)
       free_space += free
 
@@ -459,7 +469,7 @@ def highlight_match(regxs,s, casesensitivity,colr):
     flags = re.IGNORECASE
 
   for regx in regxs:
-    if (regx == re.compile('.', flags=flags)):
+    if (regx.pattern == '.'):
       continue
     lastMatch = 0
     formattedText = ''
@@ -553,8 +563,7 @@ def print_results(dic_file_info, args):
     max_output = 0
     #create a list to print out
     output_lst = []
-    #create a set to hold the number of directories
-    dir_set = set()
+    line_lendiff = []
 
     if (args.orderdate == True):
       k = lambda k:(dic_file_info[k]['mtime'], dic_file_info[k]['dir'].lower(), dic_file_info[k]['name'].lower())
@@ -641,18 +650,17 @@ def print_results(dic_file_info, args):
         out = out + fdate
       if (atime == True):
         out = out + ftime
-        
-      dir_set.add(y['dir'])
 
-      out1 = out + name 
+      out1 = out + name
 
-      out_size = len(re.sub(r'\033\[[0-9]*m', '', out1))
-      answer = sum(1 for ch in out1 if unicodedata.combining(ch) != 0)
-      out_size -= answer
+      out_size = len(_ESC.sub('', out1))
+      if (not out1.isascii()):
+        out_size -= sum(1 for ch in out1 if unicodedata.combining(ch) != 0)
       if (max_output <= out_size):
         max_output = out_size
-      
+
       output_lst.append(out1)
+      line_lendiff.append(len(out1) - out_size)
 
     try:
       #figure out how many columns we have with a 3 space gap
@@ -701,7 +709,7 @@ def print_results(dic_file_info, args):
     #get the number of files for total line
     files =len([x['name'] for x in dic_file_info.values() if x['name'] != ''])
     #get the number of dirs for total line
-    dirs = len(dir_set)
+    dirs = scan_dirs
 
     if (ainfo == True):
       #info1 = f'Files: {files}     Dirs: {dirs}    Used:{sizeof_fmt(total_size_used)}    Free:{sizeof_fmt(free_space)}'
@@ -747,16 +755,9 @@ def print_results(dic_file_info, args):
         s = f'{output_lst[lin]}'
       else:
         for col in (range(int(columns))):
-          inx = (col * lines_per_column) + lin 
+          inx = (col * lines_per_column) + lin
           if (inx < output_lines):
-            lendiff = 0
-            colors = re.findall(r'\033\[[0-9]*m', output_lst[inx])
-            for i in colors:
-              lendiff += len(i)
-            #d = re.sub('\033\[[0-9]*m', '', output_lst[inx])
-            answer = sum(1 for ch in output_lst[inx] if unicodedata.combining(ch) != 0)
-            lendiff += answer
-            s += f'{output_lst[inx]:<{max_output +lendiff}}'
+            s += f'{output_lst[inx]:<{max_output + line_lendiff[inx]}}'
             if (col < columns -1):
               #Added 3 spaces between columns plus left over
               s += f'{style.RESET}{add_spaces} \u2502 '
@@ -768,7 +769,7 @@ def print_results(dic_file_info, args):
     #get the number of files for total line
     files =len([x['name'] for x in dic_file_info.values() if x['name'] != ''])
     #get the number of dirs for total line
-    dirs = len(dir_set)
+    dirs = scan_dirs
 
     if (ainfo == True):
       msg(line_break_bottom)
@@ -827,8 +828,6 @@ def main():
         args.eregs[i] = x[1:-1]
 
 
-  #print_args(args)
-
   if (args.long == True):
     spinner.display_spinner = True
   if (args.long == False):
@@ -865,44 +864,17 @@ def main():
 
   args.eregs = ceregs
 
-  #start_time = datetime.datetime.now()
   retset = get_files(args.Dirs, mdepth, args)
-  #a1 = f'get_files: {datetime.datetime.now() - start_time}'
-
-  #start_time = datetime.datetime.now()
-  #retset = filter_list(retset, args)
-  #a2 = f'filter_list: {datetime.datetime.now() - start_time}'
-
-  #start_time = datetime.datetime.now()
-  # with cProfile.Profile() as pr:
-  #   dic_file_info = get_file_info(retset)
-
-  # stats = pstats.Stats(pr)
-  # stats.sort_stats(pstats.SortKey.TIME)
-  # stats.dump_stats(filename='f2_profiling.prof')
 
   dic_file_info = get_file_info(retset, args)
 
-
-  #a3 = f'get_file_info: {datetime.datetime.now() - start_time}'
-
-  retset = set()
-
-  # for x in dic_file_info:
-  #   print(x)
-  #   if (x != '--:--MAX--:--'):
-  #     print(f"dir: {dic_file_info[x]['dir']:15s} name: {dic_file_info[x]['name']}")
-
   print_results(dic_file_info, args)
-  #print(a1)
-  #print(a2)
-  #print(a3)
 
 
 
 
 if __name__ == "__main__":
-  __version__ = '4.17 date: 3/20/2026'
+  __version__ = '5.00 date: 9/26/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

@@ -16,7 +16,7 @@ I hope that you find this somewhat useful.
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
                 [Dirs ...] 
 
-findit.py version: 4.17 date: 3/20/2026 
+findit.py version: 5.00 date: 9/26/2026 
 This is basically a simple ls and find built into one. 
 Run it with no arguments is the same as doing -e "." -m1. 
 The -e "." mean match everything, -m1 just show one level, so the current dir. 
@@ -59,8 +59,16 @@ options:
  -R, --reverse         reverse the sort order. 
  -od, --orderdate      Order by date. 
  -os, --ordersize      Order by size. 
- -Dir, --Dir           Display Directories only.
+  -Dir, --Dir          Display Directories only.
 ```
+
+# What's new in version 5.00
+
+The info footer (the Files/Dirs/Used/Free line shown with -i or -l) now counts all directories scanned, so the Dirs number matches what you get with -Dir at any depth. Previously the footer only counted directories that directly contained matched files, plus empty directories.
+
+Directory scans no longer stop at Python's recursion limit, so very deep directory trees (1000+ levels) are listed correctly instead of silently showing nothing.
+
+Overall performance is about 35% faster on large trees, mainly on Windows where each file no longer needs an extra stat call.
 
 # Usage:
 
@@ -118,5 +126,5 @@ findit.py -a -e 'findit.py'
 # Why did I create findit.py
 I just wanted a simple way to list files and find files without having to use the find command.  I also wanted to learn Python and thought it would be fun to be able to pass regular expressions.
 
-The code is not the best and it is not that fast but for simple searches it’s fine for my needs.
+The code is not the best but version 5.00 made it a lot faster, especially on Windows, and it now handles very deep directory trees.
 

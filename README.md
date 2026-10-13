@@ -16,7 +16,7 @@ I hope that you find this somewhat useful.
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
                 [Dirs ...] 
 
-findit.py version: 5.01 date: 9/26/2026 
+findit.py version: 5.02 date: 10/13/2026 
 This is basically a simple ls and find built into one. 
 Run it with no arguments is the same as doing -e "." -m1. 
 The -e "." mean match everything, -m1 just show one level, so the current dir. 
@@ -61,6 +61,12 @@ options:
  -os, --ordersize      Order by size. 
   -Dir, --Dir          Display Directories only.
 ```
+
+# What's new in version 5.02
+
+Fixed a crash in the info footer (the Files/Dirs/Used/Free line shown with -i or -l). When it worked out the free space for each device it called shutil.disk_usage() on the directory of the file, but that path can disappear between the scan and the stat, or live on a mount that cannot be stat'd. Running something like `findit.py -lm0 /` would abort with `FileNotFoundError` on paths such as /proc/<pid>/task/<tid>/fd/. The free space lookup now falls back to the first parent directory that exists, so the listing always completes.
+
+Note that when a device cannot be reached at all the Free number is only an approximation, since it reports the first parent that responded instead.
 
 # What's new in version 5.01
 

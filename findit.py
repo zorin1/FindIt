@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 r'''
+Version 5.02 - 10/13/2026 - Fixed a crash when getting free space for the info footer.  The path can go away between the scan and
+                            the stat (ie. /proc/<pid>/task/<tid>/fd/), so disk_usage now falls back to the first parent that exists
+                            instead of raising FileNotFoundError.
 Version 5.00 - 9/26/2026 - Performance: per-file syscalls removed (cached getcwd, scandir-cached stat on Windows),
                            per-line width calc hoisted out of the column loop, faster date formatting.
                            scantree is now iterative (deep trees no longer hit the recursion limit) and isolates
@@ -319,6 +322,22 @@ def sizeof_fmt_suffix(num, suffix="B"):
     num /= 1024.0
   return f"Y{suffix}"
   
+def get_free_space(path):
+  """disk_usage() on path, walking up to the first parent that exists.
+
+  The path can vanish between the scan and the stat (ie. /proc/<pid>/task/<tid>/fd/),
+  or live on a mount we cannot stat, so fall back instead of blowing up.
+  """
+  while (True):
+    try:
+      total, used, free = shutil.disk_usage(path)
+      return(free)
+    except OSError:
+      parent = os.path.dirname(path.rstrip(os.sep))
+      if (parent == '' or parent == path):
+        return(0)
+      path = parent
+
 def get_file_info(filelist, args):
 
   dic_file_info={}
@@ -429,8 +448,7 @@ def get_file_info(filelist, args):
       dev_key = fstat.st_dev
     if (dev_key not in st_dev):
       st_dev.add(dev_key)
-      total, used, free = shutil.disk_usage(idir)
-      free_space += free
+      free_space += get_free_space(idir)
 
     #create dictionary
     if (x.isdir == True):
@@ -877,7 +895,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '5.01 date: 9/26/2026'
+  __version__ = '5.02 date: 10/13/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

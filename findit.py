@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 r'''
+Version 5.03 - 11/7/2026 - Fixed Windows showing nothing when passed wildcards (ie. findit.py *.txt).  cmd.exe does not expand
+                            wildcards like Unix shells do, so the literal '*.txt' was passed in and matched no files.
+                            Wildcards are now expanded with glob on Windows only, unmatched patterns fall back to the literal.
 Version 5.02 - 10/13/2026 - Fixed a crash when getting free space for the info footer.  The path can go away between the scan and
                             the stat (ie. /proc/<pid>/task/<tid>/fd/), so disk_usage now falls back to the first parent that exists
                             instead of raising FileNotFoundError.
@@ -54,6 +57,7 @@ import os
 import sys
 import time
 import shutil
+import glob
 from pathlib import Path
 import argparse
 import re
@@ -848,6 +852,18 @@ def main():
       if (x[0:1] == "'" and x[-1:] == "'"):
         args.eregs[i] = x[1:-1]
 
+  #Expand wildcards on Windows where the shell (cmd.exe) doesn't do it for you.
+  #On Unix the shell already expands them, and glob.glob would re-expand literal '[', ']' etc. in real filenames.
+  if (WINDOWS == True and len(args.Dirs) > 0):
+    expanded = []
+    for d in args.Dirs:
+      g = glob.glob(d)
+      if (len(g) > 0):
+        expanded.extend(g)
+      else:
+        expanded.append(d)
+    args.Dirs = expanded
+
 
   if (args.long == True):
     spinner.display_spinner = True
@@ -895,7 +911,7 @@ def main():
 
 
 if __name__ == "__main__":
-  __version__ = '5.02 date: 10/13/2026'
+  __version__ = '5.03 date: 11/7/2026'
   WINDOWS = False
   if (platform.system() == 'Windows'):
     WINDOWS = True

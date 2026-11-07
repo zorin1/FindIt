@@ -16,7 +16,7 @@ I hope that you find this somewhat useful.
 usage: findit.py [-h] [-a] [-b] [-c] [--column] [-i] [--ids] [-e EREGS [EREGS ...]] [-l] [-f] [-n] [-p] [--PermOct] [--progress] [-s] [-o] [-g] [-d] [-t] [-m MAXDEPTH] [--color] [-x] [--version] [-R] [-od] [-os] [-Dir] 
                 [Dirs ...] 
 
-findit.py version: 5.02 date: 10/13/2026 
+findit.py version: 5.03 date: 11/7/2026 
 This is basically a simple ls and find built into one. 
 Run it with no arguments is the same as doing -e "." -m1. 
 The -e "." mean match everything, -m1 just show one level, so the current dir. 
@@ -61,6 +61,10 @@ options:
  -os, --ordersize      Order by size. 
   -Dir, --Dir          Display Directories only.
 ```
+
+# What's new in version 5.03
+
+Fixed Windows showing nothing when you passed a wildcard like `findit.py *.txt`. On Unix the shell expands the wildcard into a list of files before findit.py even runs, but cmd.exe and PowerShell do not, so the literal string '*.txt' was passed in and matched no files. On Windows the arguments are now expanded with glob, and a pattern that matches nothing falls back to being treated as a literal name.
 
 # What's new in version 5.02
 
